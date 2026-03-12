@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/tooltip"
 import type { DiffSide, JsonObject, SideSelection } from "@/lib/types"
 import "react-diff-view/style/index.css"
-import "./MergeConflictViewer.css"
 
 export interface MergeConflictViewerProps {
   /**
@@ -109,6 +108,25 @@ export function MergeConflictViewer({
   }, [diffText])
 
   const differences = useMemo(() => diff(jsonL, jsonR), [jsonL, jsonR])
+
+  const resultLines = useMemo(() => {
+    return JSON.stringify(mergedJson, null, 2)
+      .split("\n")
+      .map((line) => {
+        const match = line.match(/^(\s*)"([^"]+)":/)
+        if (!match) return { line, path: null }
+        const depth = match[1].length
+        const key = match[2]
+        const matchedPath = conflictingKeys.find((p) => {
+          const segments = p.split(".")
+          return (
+            segments[segments.length - 1] === key &&
+            segments.length * 2 === depth
+          )
+        })
+        return { line, path: matchedPath ?? null }
+      })
+  }, [mergedJson, conflictingKeys])
 
   useEffect(() => {
     if (differences) {
@@ -303,7 +321,7 @@ export function MergeConflictViewer({
     return (
       <div className="relative flex justify-end items-center my-px bg-inherit">
         {isChangeType && matchingPath && (
-          <div className="mcv-gutter-buttons absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-10">
+          <div className="bg-inherit absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-10">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -375,7 +393,7 @@ export function MergeConflictViewer({
     )
   }
 
-  const renderFile = ({ type, hunks }: FileData): JSX.Element => {
+  const renderFile = ({ type, hunks, oldPath }: FileData): JSX.Element => {
     const options = {
       highlight: false,
       enhancers: [markEdits(hunks, { type: "block" })],
@@ -384,6 +402,7 @@ export function MergeConflictViewer({
 
     return (
       <Diff
+        key={oldPath}
         viewType="split"
         diffType={type}
         hunks={hunks}
@@ -399,6 +418,24 @@ export function MergeConflictViewer({
 
   return (
     <TooltipProvider>
+      <style>{`
+        .mcv-old-only .diff { width: 200%; }
+        .mcv-new-only .diff { width: 200%; transform: translateX(-50%); }
+        .diff-gutter { cursor: default; position: relative; }
+        .dark {
+          --diff-background-color: hsl(var(--background));
+          --diff-text-color: hsl(var(--foreground));
+          --diff-selection-background-color: #3b5998;
+          --diff-gutter-insert-background-color: #1c3d25;
+          --diff-gutter-delete-background-color: #4a1f24;
+          --diff-code-insert-background-color: #0d3818;
+          --diff-code-delete-background-color: #3d1319;
+          --diff-code-insert-edit-background-color: #2d5a1e;
+          --diff-code-delete-edit-background-color: #6b2632;
+          --diff-gutter-selected-background-color: #4d4522;
+          --diff-code-selected-background-color: #4d4522;
+        }
+      `}</style>
       <div>
         <div className="flex flex-col md:flex-row gap-2 pb-2">
           <Button variant="outline" onClick={() => applyAllFrom("left")}>
@@ -432,16 +469,34 @@ export function MergeConflictViewer({
               </div>
             </div>
             <div className="border-b last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
+              <p className="p-2 border-b">{labels.result ?? "Result"}</p>
+              <div className="whitespace-pre-wrap break-words font-mono text-sm py-2">
+                {resultLines.map(({ line, path }, i) => {
+                  const sel = path ? selectedKeys[path] : undefined
+                  return (
+                    <div
+                      key={i}
+                      className="px-2"
+                      style={{
+                        backgroundColor:
+                          sel === "left"
+                            ? "var(--diff-code-delete-background-color)"
+                            : sel === "right"
+                              ? "var(--diff-code-insert-background-color)"
+                              : undefined,
+                      }}
+                    >
+                      {line || "\u00a0"}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
               <p className="p-2 border-b">{labels.incoming ?? "Incoming"}</p>
               <div className="mcv-new-only overflow-hidden">
                 {files.map(renderFile)}
               </div>
-            </div>
-            <div>
-              <p className="p-2 border-b">{labels.result ?? "Result"}</p>
-              <pre className="whitespace-pre-wrap break-words p-2">
-                {JSON.stringify(mergedJson, null, 2)}
-              </pre>
             </div>
           </div>
         </div>

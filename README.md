@@ -1,10 +1,10 @@
 # Merge Conflict Viewer
 
-A React component for viewing and resolving JSON merge conflicts with an intuitive side-by-side diff interface.
+A React component for viewing and resolving JSON merge conflicts with an intuitive diff interface.
 
 ## Features
 
-- **Side-by-side diff viewing** - Compare two JSON objects with clear visual differences
+- **Diff viewing** - Compare two JSON objects with clear visual differences
 - **Interactive conflict resolution** - Choose which version to keep for each conflicting field
 - **Field deletion** - Remove unwanted fields from the merged result
 - **Bulk operations** - Apply all changes from one side with a single click

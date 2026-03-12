@@ -1,7 +1,7 @@
 {
   "name": "@ht-rnd/merge-conflict-viewer",
   "private": false,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "A comprehensive merge conflict viewer component for React applications",
   "author": "",
