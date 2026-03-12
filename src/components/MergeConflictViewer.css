@@ -1,0 +1,31 @@
+.mcv-old-only .diff {
+  width: 200%;
+}
+
+.mcv-new-only .diff {
+  width: 200%;
+  transform: translateX(-50%);
+}
+
+.diff-gutter {
+  cursor: default;
+  position: relative;
+}
+
+.mcv-gutter-buttons {
+  background-color: inherit;
+}
+
+.dark {
+  --diff-background-color: hsl(var(--background));
+  --diff-text-color: hsl(var(--foreground));
+  --diff-selection-background-color: #3b5998;
+  --diff-gutter-insert-background-color: #1c3d25;
+  --diff-gutter-delete-background-color: #4a1f24;
+  --diff-code-insert-background-color: #0d3818;
+  --diff-code-delete-background-color: #3d1319;
+  --diff-code-insert-edit-background-color: #2d5a1e;
+  --diff-code-delete-edit-background-color: #6b2632;
+  --diff-gutter-selected-background-color: #4d4522;
+  --diff-code-selected-background-color: #4d4522;
+}
