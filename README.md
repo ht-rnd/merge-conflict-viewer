@@ -4,46 +4,60 @@ A React component for viewing and resolving JSON merge conflicts with an intuiti
 
 ## Features
 
-- **Diff viewing** - Compare two JSON objects with clear visual differences
-- **Interactive conflict resolution** - Choose which version to keep for each conflicting field
-- **Field deletion** - Remove unwanted fields from the merged result
-- **Bulk operations** - Apply all changes from one side with a single click
-- **Customizable** - Configure labels and container height
-- **TypeScript support** - Fully typed API for better development experience
-- **Real-time preview** - See the merged result update instantly
+- **Diff viewing** — Compare two JSON objects with clear visual differences
+- **Interactive conflict resolution** — Choose which version to keep for each conflicting field
+- **Field deletion** — Remove unwanted fields from the merged result
+- **Bulk operations** — Apply all changes from one side with a single click
+- **Customizable** — Configure labels, layout, and container height
+- **Real-time preview** — See the merged result update instantly
 
-## Installation
+## Setup
+
+### Prerequisites
+
+- React app with TypeScript
+- Tailwind CSS configured
+- shadcn/ui initialized (`components.json`, `cn` utility, CSS variables)
+- `@/` path alias pointing to `src/`
+
+### 1. Add shadcn/ui components
 
 ```bash
-npm install @ht-rnd/merge-conflict-viewer
+npx shadcn@latest add button tooltip
 ```
 
-### Peer Dependencies
+### 2. Copy `MergeConflictViewer.tsx`
+
+Copy [`src/components/MergeConflictViewer.tsx`](src/components/MergeConflictViewer.tsx) into your `src/components/` folder.
+
+### 3. Copy the `unidiff` type declaration
+
+Copy [`src/types/unidiff.d.ts`](src/types/unidiff.d.ts) into your `src/types/` folder. This file provides TypeScript types for the `unidiff` package, which ships without official type definitions.
+
+### 4. Install npm dependencies
 
 ```bash
-npm install react react-dom
+npm install deep-diff react-diff-view unidiff lucide-react clsx tailwind-merge class-variance-authority radix-ui
+npm install --save-dev @types/deep-diff
 ```
-
-Make sure you have Tailwind CSS configured in your project, as this library uses Tailwind utility classes.
 
 ## Usage
 
-### Basic Example
+### Basic
 
 ```tsx
-import { MergeConflictViewer } from "@ht-rnd/merge-conflict-viewer";
-import "@ht-rnd/merge-conflict-viewer/styles"; // Import styles
+import { MergeConflictViewer } from "@/components/MergeConflictViewer";
 
 const currentData = {
   name: "John Doe",
   age: 30,
-  city: "New York"
+  city: "New York",
 };
 
 const incomingData = {
   name: "John Doe",
   age: 31,
-  city: "San Francisco"
+  city: "San Francisco",
 };
 
 function App() {
@@ -56,11 +70,11 @@ function App() {
 }
 ```
 
-### With Custom Labels and Callback
+### With callback
 
 ```tsx
-import { MergeConflictViewer } from "@ht-rnd/merge-conflict-viewer";
-import type { JsonObject } from "@ht-rnd/merge-conflict-viewer";
+import { MergeConflictViewer } from "@/components/MergeConflictViewer";
+import type { JsonObject } from "@/components/MergeConflictViewer";
 
 function App() {
   const handleMergeChange = (mergedJson: JsonObject) => {
@@ -72,75 +86,54 @@ function App() {
       currentJson={currentData}
       incomingJson={incomingData}
       onMergeChange={handleMergeChange}
-      labels={{
-        current: "My Version",
-        incoming: "Their Version",
-        result: "Final Result"
-      }}
-      buttonLabels={{
-        applyAllCurrent: "Keep All Mine",
-        applyAllIncoming: "Accept All Theirs"
-      }}
-      height="600px"
     />
   );
 }
 ```
 
-## API Reference
+### With all props
 
-### MergeConflictViewerProps
+```tsx
+<MergeConflictViewer
+  currentJson={currentData}
+  incomingJson={incomingData}
+  initialMergedJson={currentData}
+  onMergeChange={(merged) => console.log(merged)}
+  labels={{
+    current: "My Version",
+    incoming: "Their Version",
+    result: "Final Result",
+  }}
+  buttonLabels={{
+    applyAllCurrent: "Keep All Mine",
+    applyAllIncoming: "Accept All Theirs",
+  }}
+  height="600px"
+  layout="horizontal"
+/>
+```
+
+## Props
 
 | Prop | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `currentJson` | `JsonObject` | Yes | - | The "current" or "left" JSON object to compare |
-| `incomingJson` | `JsonObject` | Yes | - | The "incoming" or "right" JSON object to compare |
-| `onMergeChange` | `(mergedJson: JsonObject) => void` | No | - | Callback fired when the merged result changes |
-| `initialMergedJson` | `JsonObject` | No | `incomingJson` | Initial merged JSON (defaults to incomingJson) |
-| `labels` | `{ current?: string; incoming?: string; result?: string }` | No | `{ current: "Current", incoming: "Incoming", result: "Result" }` | Custom labels for the three columns |
-| `buttonLabels` | `{ applyAllCurrent?: string; applyAllIncoming?: string }` | No | See below | Custom button labels |
-| `height` | `string \| number` | No | - | Height of the diff viewer container |
-| `layout` | `"horizontal" \| "vertical" \| "responsive"` | No | `"responsive"` | Pane layout mode |
-
-**Default Button Labels:**
-- `applyAllCurrent`: `"Apply all from current"`
-- `applyAllIncoming`: `"Apply all from incoming"`
-
-### Type Exports
-
-```typescript
-import type {
-  MergeConflictViewerProps,
-  JsonObject,
-  SideSelection,
-  DiffSide
-} from "@ht-rnd/merge-conflict-viewer";
-
-// JsonObject: Record<string, unknown>
-// SideSelection: "left" | "right" | "deleted"
-// DiffSide: "left" | "right"
-```
-
-## Styling
-
-This library uses Tailwind CSS for styling. Make sure you have Tailwind CSS configured in your project. The component also imports CSS from `react-diff-view` for the diff syntax highlighting.
+| `currentJson` | `JsonObject` | Yes | — | The "current" / left JSON object |
+| `incomingJson` | `JsonObject` | Yes | — | The "incoming" / right JSON object |
+| `onMergeChange` | `(mergedJson: JsonObject) => void` | No | — | Fired when the merged result changes |
+| `initialMergedJson` | `JsonObject` | No | `incomingJson` | Starting value for the result pane |
+| `labels` | `{ current?: string; incoming?: string; result?: string }` | No | `"Current"` / `"Incoming"` / `"Result"` | Column header labels |
+| `buttonLabels` | `{ applyAllCurrent?: string; applyAllIncoming?: string }` | No | `"Apply all from current"` / `"Apply all from incoming"` | Bulk-action button labels |
+| `height` | `string \| number` | No | — | Height of the diff container |
+| `layout` | `"horizontal" \| "vertical" \| "responsive"` | No | `"responsive"` | Pane layout. `"responsive"` is horizontal on `md+`, vertical on smaller screens |
 
 ## How It Works
 
-1. **Deep Diff Analysis**: The component uses `deep-diff` to analyze differences between the two JSON objects
-2. **Unified Diff Generation**: Creates a unified diff using `unidiff` for visual comparison
-3. **Interactive UI**: Renders the diff with `react-diff-view` and adds interactive controls
-4. **Real-time Updates**: Tracks user selections and updates the merged result in real-time
+- **Deep diff** — `deep-diff` detects which keys differ between the two objects
+- **Unified diff** — `unidiff` generates a unified diff for line-by-line display
+- **Interactive UI** — `react-diff-view` renders the split diff; gutter buttons let you accept or delete each change
+- **Result pane** — tracks your selections and shows the merged JSON in real-time
 
-## Development
-
-### Building the Library
-
-```bash
-npm run build
-```
-
-### Running the Demo
+## Run the Demo
 
 ```bash
 cd demo
@@ -148,26 +141,14 @@ npm install
 npm run dev
 ```
 
-### Linting and Formatting
-
-```bash
-npm run check      # Run linter with auto-fix
-npm run format     # Format code
-```
-
 ## License
 
 Apache-2.0
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## Credits
 
-Built with:
-- [react-diff-view](https://github.com/otakustay/react-diff-view) - Diff rendering
-- [deep-diff](https://github.com/flitbit/diff) - Object comparison
-- [unidiff](https://github.com/sergeyt/unidiff) - Unified diff generation
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [Radix UI](https://www.radix-ui.com/) - Accessible components
+- [react-diff-view](https://github.com/otakustay/react-diff-view)
+- [deep-diff](https://github.com/flitbit/diff)
+- [unidiff](https://github.com/sergeyt/unidiff)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Radix UI](https://www.radix-ui.com/) / [shadcn/ui](https://ui.shadcn.com/)

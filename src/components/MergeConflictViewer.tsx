@@ -21,8 +21,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { DiffSide, JsonObject, SideSelection } from "@/lib/types"
 import "react-diff-view/style/index.css"
+
+export type JsonObject = Record<string, unknown>
+export type SideSelection = "left" | "right" | "deleted"
+export type DiffSide = "left" | "right"
 
 export interface MergeConflictViewerProps {
   /**

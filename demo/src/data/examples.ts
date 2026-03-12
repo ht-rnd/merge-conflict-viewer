@@ -1,5 +1,5 @@
-import { spec1, spec2 } from "@/lib/consts/specifications"
-import type { JsonObject } from "@/lib/types"
+import type { JsonObject } from "@/components/MergeConflictViewer"
+import { spec1, spec2 } from "./specifications"
 
 export interface Example {
   label: string

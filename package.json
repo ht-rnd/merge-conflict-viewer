@@ -1,6 +1,6 @@
 {
   "name": "@ht-rnd/merge-conflict-viewer",
-  "private": false,
+  "private": true,
   "version": "1.0.0",
   "type": "module",
   "description": "A comprehensive merge conflict viewer component for React applications",
@@ -15,39 +15,19 @@
     "json",
     "comparison"
   ],
-  "main": "./dist/lib/main.umd.js",
-  "module": "./dist/lib/main.es.js",
-  "types": "./dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/lib/main.es.js",
-      "require": "./dist/lib/main.umd.js"
-    },
-    "./styles": "./dist/merge-conflict-viewer.css"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
   "repository": {
     "type": "git",
     "url": ""
   },
   "scripts": {
     "start": "npm run dev",
-    "dev": "vite --host --logLevel info",
-    "build": "biome ci && vite build",
-    "build:ci": "vite build",
+    "dev": "cd demo && npm run dev",
+    "build": "biome ci && cd demo && npm run build",
+    "build:ci": "cd demo && npm run build",
     "check": "biome check --write",
     "check:ci": "biome ci",
     "format": "biome format --write",
     "preview": "vite preview"
-  },
-  "peerDependencies": {
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -58,10 +38,6 @@
     "react-diff-view": "^3.3.2",
     "tailwind-merge": "^3.4.1",
     "unidiff": "^1.0.4"
-  },
-  "optionalDependencies": {
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.2",
@@ -74,7 +50,6 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.6",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
-    "vite-plugin-dts": "^4.5.4"
+    "vite": "^7.3.1"
   }
 }

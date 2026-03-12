@@ -1,4 +1,4 @@
-import { Github, GitMerge, Moon, Package, Sun } from "lucide-react"
+import { Github, GitMerge, Moon, Sun } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,21 +29,6 @@ export function Header({ theme, onThemeChange }: HeaderProps) {
       </Link>
 
       <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" asChild>
-              <a
-                href="https://www.npmjs.com/package/@ht-rnd/merge-conflict-viewer"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Package className="w-5 h-5" />
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>npm package</TooltipContent>
-        </Tooltip>
-
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" asChild>
