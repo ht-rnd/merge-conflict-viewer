@@ -29,6 +29,12 @@ It is a **two-way** comparison. There is no common ancestor ("base"), so it neve
 In a project that already uses shadcn/ui (`components.json` exists):
 
 ```bash
+npx shadcn add ht-rnd/merge-conflict-viewer/merge-conflict-viewer
+```
+
+This reads `registry.json` from the repository root (a [GitHub registry](https://ui.shadcn.com/docs/registry/github)), so it needs no server. Pin a release with a ref, for example `...merge-conflict-viewer#v0.1.0`, and preview with `--dry-run` or `--diff`. The same registry is also served as static JSON from the demo site, which works with older CLI versions:
+
+```bash
 npx shadcn add https://ht-rnd.github.io/merge-conflict-viewer/r/merge-conflict-viewer.json
 ```
 
@@ -39,7 +45,7 @@ The command:
 - writes `components/ui/merge-conflict-viewer.tsx`,
 - adds the `--merge-*` colour variables (light and dark) to your CSS file.
 
-Prefer a short name? Register the URL as a namespace in your `components.json` and use `npx shadcn add @ht-rnd/merge-conflict-viewer`:
+Prefer a short name? Register the Pages URL as a namespace in your `components.json` and use `npx shadcn add @ht-rnd/merge-conflict-viewer`:
 
 ```json
 {
