@@ -168,13 +168,24 @@ function checkVariant(variant) {
     assert(output.includes(expected), `${variant}: built CSS lacks ${expected}`)
   }
   assert(
-    /\.border-\\\[color\\:var\\\(--merge-modified-border\\\)\\\]/.test(output),
+    /\.border-\\\[color\\:var\\\(--_merge-modified-border\\\)\\\]/.test(output),
     `${variant}: the merge border utility was not generated`,
   )
   assert(
-    /\.bg-\\\[color\\:var\\\(--merge-pending\\\)\\\]/.test(output),
+    /\.bg-\\\[color\\:var\\\(--_merge-pending\\\)\\\]/.test(output),
     `${variant}: the merge background utility was not generated`,
   )
+
+  // Built-in defaults, used when a project lacks the --merge-* variables.
+  for (const mode of ["light", "dark"]) {
+    const value = item.cssVars[mode]["merge-modified"]
+    assert(
+      new RegExp(
+        `--_merge-modified:\\s*var\\(--merge-modified,\\s*${value}\\)`,
+      ).test(output),
+      `${variant}: the ${mode} default for --merge-modified was not generated`,
+    )
+  }
 
   console.log(`\n${variant} ok`)
 }
