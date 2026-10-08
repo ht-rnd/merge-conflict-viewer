@@ -27,17 +27,24 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "24"
           cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            demo/package-lock.json
 
       - name: Install Dependencies
         run: |
           npm ci
-          cd demo && npm ci
+          npm --prefix demo ci
+
+      # Writes demo/public/r/*.json so the registry is served from
+      # https://<pages-url>/r/merge-conflict-viewer.json
+      - name: Build shadcn registry
+        run: npm run registry:build
 
       - name: Build Demo
-        run: |
-          cd demo && npm run build
+        run: npm --prefix demo run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

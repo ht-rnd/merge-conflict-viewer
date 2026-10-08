@@ -1,10 +1,10 @@
 {
   "name": "@ht-rnd/merge-conflict-viewer",
-  "private": true,
-  "version": "1.0.0",
+  "private": false,
+  "version": "0.1.0",
   "type": "module",
-  "description": "A comprehensive merge conflict viewer component for React applications",
-  "author": "",
+  "description": "Headless merge conflict viewer for JSON (React hooks and merge model), with a shadcn/ui registry component",
+  "author": "ht-rnd",
   "license": "Apache-2.0",
   "keywords": [
     "react",
@@ -13,43 +13,63 @@
     "diff",
     "viewer",
     "json",
-    "comparison"
+    "comparison",
+    "headless",
+    "shadcn",
+    "shadcn-registry"
+  ],
+  "main": "./dist/lib/main.cjs",
+  "module": "./dist/lib/main.es.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/lib/main.es.js",
+      "require": "./dist/lib/main.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/ht-rnd/merge-conflict-viewer.git"
   },
   "scripts": {
     "start": "npm run dev",
-    "dev": "cd demo && npm run dev",
-    "build": "biome ci && cd demo && npm run build",
-    "build:ci": "cd demo && npm run build",
+    "dev": "npm --prefix demo run dev",
+    "build": "biome ci && vite build",
+    "build:ci": "vite build",
     "check": "biome check --write",
     "check:ci": "biome ci",
     "format": "biome format --write",
-    "preview": "vite preview"
+    "test": "vitest run",
+    "test:demo": "npm --prefix demo run test",
+    "test:package": "npm run build:ci && node scripts/smoke-test.mjs",
+    "registry:build": "npm --prefix demo run registry:build",
+    "test:registry": "node scripts/registry-test.mjs"
   },
-  "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "deep-diff": "^1.0.2",
-    "lucide-react": "^0.574.0",
-    "radix-ui": "^1.4.3",
-    "react-diff-view": "^3.3.2",
-    "tailwind-merge": "^3.4.1",
-    "unidiff": "^1.0.4"
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.2",
-    "@types/deep-diff": "^1.0.5",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.6",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
-  }
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^5.0.3"
+  },
+  "sideEffects": false
 }

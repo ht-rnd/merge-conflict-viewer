@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.5/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -12,13 +12,17 @@
       "!**/dist",
       "!**/build",
       "!**/node_modules",
+      "!**/.smoke",
       "!**/coverage",
       "!**/support",
       "!**/public",
       "!**/assets",
       "!**/package.json",
       "!**/package-lock.json",
-      "!**/src/components/ui/**/*"
+      "!**/.cursor",
+      "!**/.registry-test",
+      "!**/src/components/ui/**/*",
+      "**/src/components/ui/merge-conflict-viewer.tsx"
     ]
   },
   "formatter": {

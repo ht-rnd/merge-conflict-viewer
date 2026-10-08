@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
 
@@ -22,9 +22,10 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../src/*"]
+      "@/*": ["./src/*"],
+      "@ht-rnd/merge-conflict-viewer": ["../src/lib/index.ts"]
     }
   },
-  "include": ["src", "../src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "../src/lib"],
+  "exclude": ["node_modules", "dist", "../src/lib/**/*.test.ts"]
 }

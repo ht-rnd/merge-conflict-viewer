@@ -16,8 +16,45 @@ interface ViewerConfigProps {
   onLayoutChange: (layout: "horizontal" | "vertical" | "responsive") => void
   height: string
   onHeightChange: (height: string) => void
-  initialMerged: "current" | "incoming"
-  onInitialMergedChange: (value: "current" | "incoming") => void
+  initialMerged: InitialResult
+  onInitialMergedChange: (value: InitialResult) => void
+  editable: boolean
+  onEditableChange: (value: boolean) => void
+  collapseUnchanged: boolean
+  onCollapseUnchangedChange: (value: boolean) => void
+}
+
+export type InitialResult = "none" | "current" | "incoming"
+
+function Toggle({
+  id,
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  id: string
+  label: string
+  hint: string
+  checked: boolean
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </Label>
+      <label className="flex items-center gap-2 text-sm" htmlFor={id}>
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        {hint}
+      </label>
+    </div>
+  )
 }
 
 export function ViewerConfig({
@@ -29,6 +66,10 @@ export function ViewerConfig({
   onHeightChange,
   initialMerged,
   onInitialMergedChange,
+  editable,
+  onEditableChange,
+  collapseUnchanged,
+  onCollapseUnchangedChange,
 }: ViewerConfigProps) {
   return (
     <div>
@@ -73,11 +114,32 @@ export function ViewerConfig({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="incoming">Incoming (default)</SelectItem>
-              <SelectItem value="current">Current</SelectItem>
+              <SelectItem value="none">None: review every change</SelectItem>
+              <SelectItem value="incoming">
+                Incoming (counts as decided)
+              </SelectItem>
+              <SelectItem value="current">
+                Current (counts as decided)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
+
+        <Toggle
+          id="editable"
+          label="Editable result"
+          hint="Edit values by hand in the Result pane"
+          checked={editable}
+          onChange={onEditableChange}
+        />
+
+        <Toggle
+          id="collapse-unchanged"
+          label="Unchanged lines"
+          hint="Start with long unchanged runs folded"
+          checked={collapseUnchanged}
+          onChange={onCollapseUnchangedChange}
+        />
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="example-select" className="text-sm font-medium">
@@ -95,6 +157,9 @@ export function ViewerConfig({
               ))}
             </SelectContent>
           </Select>
+          <p className="text-sm text-muted-foreground">
+            {examples[selectedExample]?.description}
+          </p>
         </div>
       </div>
     </div>
