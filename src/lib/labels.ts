@@ -1,12 +1,12 @@
-import type { MergeStatus } from "../lib/merge-model"
+import type { MergeStatus } from "./merge-model"
 
 /**
- * Every piece of text the viewer shows, so it can be translated or reworded.
+ * Every piece of text a merge viewer shows, so it can be translated or reworded.
  * Anything you leave out keeps its English default. Functions receive what
  * they need to build the sentence (a change label such as `address.city`, a
  * count, or the merge status).
  */
-export interface MergeConflictViewerLabels {
+export interface MergeViewerLabels {
   // Column titles
   current?: string
   result?: string
@@ -47,7 +47,7 @@ export interface MergeConflictViewerLabels {
   cancel?: string
 }
 
-export type ResolvedLabels = Required<MergeConflictViewerLabels>
+export type ResolvedLabels = Required<MergeViewerLabels>
 
 function plural(count: number, one: string, many: string): string {
   return count === 1 ? one : many
@@ -100,7 +100,7 @@ export const defaultLabels: ResolvedLabels = {
 
 /** Defaults overlaid with the labels the host provided. */
 export function resolveLabels(
-  labels: MergeConflictViewerLabels | undefined,
+  labels: MergeViewerLabels | undefined,
 ): ResolvedLabels {
   const resolved: Record<string, unknown> = { ...defaultLabels }
   for (const [key, value] of Object.entries(labels ?? {})) {

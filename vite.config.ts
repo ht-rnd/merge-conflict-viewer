@@ -17,39 +17,17 @@ const externals = [
 const isExternal = (id: string): boolean =>
   externals.some((name) => id === name || id.startsWith(`${name}/`))
 
-/**
- * The component injects its styles at runtime, and the same stylesheet is
- * shipped as `dist/merge-conflict-viewer.css` for apps that render on the
- * server or want to load it themselves.
- */
-const emitStylesheet = {
-  name: "emit-stylesheet",
-  apply: "build" as const,
-  generateBundle(this: { emitFile: (file: object) => string }) {
-    this.emitFile({
-      type: "asset",
-      fileName: "merge-conflict-viewer.css",
-      source: readFileSync(
-        path.resolve(__dirname, "src/components/MergeConflictViewer.css"),
-        "utf8",
-      ),
-    })
-  },
-}
-
 export default defineConfig({
   plugins: [
     react(),
-    emitStylesheet,
     dts({
       insertTypesEntry: true,
       rollupTypes: true,
       outDir: "dist/types",
-      include: ["src/lib", "src/components"],
+      include: ["src/lib"],
       exclude: ["src/lib/consts/**", "**/*.test.ts", "**/*.test.tsx"],
     }),
   ],
-  base: "/",
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],

@@ -19,7 +19,10 @@
       "!**/assets",
       "!**/package.json",
       "!**/package-lock.json",
-      "!**/src/components/ui/**/*"
+      "!**/.cursor",
+      "!**/.registry-test",
+      "!**/src/components/ui/**/*",
+      "**/src/components/ui/merge-conflict-viewer.tsx"
     ]
   },
   "formatter": {

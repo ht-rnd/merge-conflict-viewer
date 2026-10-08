@@ -33,3 +33,9 @@ npm-debug.log*
 
 # Package smoke test scratch
 .smoke/
+
+# Registry output (built by `npm run registry:build`)
+demo/public/r/
+
+# Registry compatibility test scratch
+.registry-test/
