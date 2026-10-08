@@ -9,7 +9,7 @@
       "title": "Merge Conflict Viewer",
       "description": "Compare two JSON documents in three aligned panes (current, result, incoming) and decide every change. Built on the headless @ht-rnd/merge-conflict-viewer package.",
       "dependencies": [
-        "@ht-rnd/merge-conflict-viewer@^0.1.0",
+        "@ht-rnd/merge-conflict-viewer@^1.0.0",
         "lucide-react",
         "class-variance-authority"
       ],

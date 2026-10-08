@@ -32,7 +32,7 @@ In a project that already uses shadcn/ui (`components.json` exists):
 npx shadcn add ht-rnd/merge-conflict-viewer/merge-conflict-viewer
 ```
 
-This reads `registry.json` from the repository root (a [GitHub registry](https://ui.shadcn.com/docs/registry/github)), so it needs no server. Pin a release with a ref, for example `...merge-conflict-viewer#v0.1.0`, and preview with `--dry-run` or `--diff`. The same registry is also served as static JSON from the demo site, which works with older CLI versions:
+This reads `registry.json` from the repository root (a [GitHub registry](https://ui.shadcn.com/docs/registry/github)), so it needs no server. Pin a release with a ref, for example `...merge-conflict-viewer#v1.0.0`, and preview with `--dry-run` or `--diff`. The same registry is also served as static JSON from the demo site, which works with older CLI versions:
 
 ```bash
 npx shadcn add https://ht-rnd.github.io/merge-conflict-viewer/r/merge-conflict-viewer.json
