@@ -167,13 +167,24 @@ function checkVariant(variant) {
   ]) {
     assert(output.includes(expected), `${variant}: built CSS lacks ${expected}`)
   }
+  // The declarations must be valid, not just present. Tailwind v3 rewrites "_"
+  // inside arbitrary values to a space, which once produced `var(-- x)`: the
+  // selector existed, the browser dropped the declaration, nothing was coloured.
   assert(
-    /\.border-\\\[color\\:var\\\(--_merge-modified-border\\\)\\\]/.test(output),
-    `${variant}: the merge border utility was not generated`,
+    !/var\(--\s/.test(output),
+    `${variant}: built CSS has a broken variable reference such as "var(-- x)"`,
   )
   assert(
-    /\.bg-\\\[color\\:var\\\(--_merge-pending\\\)\\\]/.test(output),
-    `${variant}: the merge background utility was not generated`,
+    /\.border-\\\[color\\:var\\\(--mcv-modified-border\\\)\\\]\s*\{[^}]*border-color:\s*var\(--mcv-modified-border\)/.test(
+      output,
+    ),
+    `${variant}: the merge border utility was not generated with a valid value`,
+  )
+  assert(
+    /\.bg-\\\[color\\:var\\\(--mcv-pending\\\)\\\]\s*\{[^}]*background-color:\s*var\(--mcv-pending\)/.test(
+      output,
+    ),
+    `${variant}: the merge background utility was not generated with a valid value`,
   )
 
   // Built-in defaults, used when a project lacks the --merge-* variables.
@@ -181,7 +192,7 @@ function checkVariant(variant) {
     const value = item.cssVars[mode]["merge-modified"]
     assert(
       new RegExp(
-        `--_merge-modified:\\s*var\\(--merge-modified,\\s*${value}\\)`,
+        `--mcv-modified:\\s*var\\(--merge-modified,\\s*${value}\\)`,
       ).test(output),
       `${variant}: the ${mode} default for --merge-modified was not generated`,
     )
