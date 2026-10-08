@@ -66,8 +66,8 @@ describe("registry item", () => {
   it("defines every colour the component uses, in light and dark", () => {
     const source = read(item.files[0].path)
     const used = new Set(
-      [...source.matchAll(/var\(--_(merge-[\w-]+)\)/g)].map(
-        (match) => match[1],
+      [...source.matchAll(/var\(--mcv-([\w-]+)\)/g)].map(
+        (match) => `merge-${match[1]}`,
       ),
     )
     expect(used.size).toBeGreaterThan(0)
@@ -79,17 +79,17 @@ describe("registry item", () => {
 
   it("falls back to the shipped colours when the variables are missing", () => {
     const source = read(item.files[0].path)
-    // "[--_merge-x:var(--merge-x,#hex)]" for light, "dark:[...]" for dark.
+    // "[--mcv-x:var(--merge-x,#hex)]" for light, "dark:[...]" for dark.
     const fallbacks = (prefix: string) =>
       Object.fromEntries(
         [
           ...source.matchAll(
             new RegExp(
-              `"${prefix}\\[--_(merge-[\\w-]+):var\\(--merge-[\\w-]+,([^)]+)\\)\\]"`,
+              `"${prefix}\\[--mcv-([\\w-]+):var\\(--merge-[\\w-]+,([^)]+)\\)\\]"`,
               "g",
             ),
           ),
-        ].map((match) => [match[1], match[2]]),
+        ].map((match) => [`merge-${match[1]}`, match[2]]),
       )
     expect(fallbacks("")).toEqual(item.cssVars.light)
     expect(fallbacks("dark:")).toEqual(item.cssVars.dark)
@@ -99,6 +99,14 @@ describe("registry item", () => {
     const css = read("demo/src/index.css")
     expect(cssBlock(css, ":root")).toMatchObject(item.cssVars.light)
     expect(cssBlock(css, ".dark")).toMatchObject(item.cssVars.dark)
+  })
+
+  it("keeps underscores out of variable names inside arbitrary values", () => {
+    const source = read(item.files[0].path)
+    // Tailwind v3 turns "_" in an arbitrary value into a space, so
+    // bg-[color:var(--_x)] becomes the invalid var(-- x) and nothing is coloured.
+    expect(source).not.toMatch(/var\(--[\w-]*_/)
+    expect(source).not.toMatch(/\[--_/)
   })
 
   it("uses no Tailwind v4-only syntax, so it also works on v3.4", () => {

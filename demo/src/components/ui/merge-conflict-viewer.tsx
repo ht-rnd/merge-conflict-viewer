@@ -61,48 +61,51 @@ import { cn } from "@/lib/utils"
 /*
  * Every colour below resolves to your `--merge-*` variable when your CSS defines
  * it, and to the built-in default otherwise (light, and a dark one under
- * `.dark`). The classes read the private `--_merge-*` copies, which are set once
+ * `.dark`). The classes read the private `--mcv-*` copies, which are set once
  * on the root, so deleting the variables from your CSS never leaves the viewer
  * uncoloured, and overriding `--merge-*` on the root or any ancestor still wins.
+ * The copies are named `--mcv-*` with no underscore on purpose: Tailwind v3
+ * turns every underscore inside an arbitrary value into a space, so a name with
+ * one would be emitted as an invalid reference and the colours would vanish.
  * Keep these in step with `cssVars` in registry.json (a test checks it).
  */
 const MERGE_DEFAULTS = [
-  "[--_merge-modified:var(--merge-modified,#dce8fd)]",
-  "dark:[--_merge-modified:var(--merge-modified,#25344f)]",
-  "[--_merge-modified-border:var(--merge-modified-border,#a4c0f2)]",
-  "dark:[--_merge-modified-border:var(--merge-modified-border,#3b5587)]",
-  "[--_merge-modified-highlight:var(--merge-modified-highlight,#b3cdfa)]",
-  "dark:[--_merge-modified-highlight:var(--merge-modified-highlight,#36507d)]",
-  "[--_merge-added:var(--merge-added,#dcf1e1)]",
-  "dark:[--_merge-added:var(--merge-added,#1d3a28)]",
-  "[--_merge-added-border:var(--merge-added-border,#9bd2a9)]",
-  "dark:[--_merge-added-border:var(--merge-added-border,#2e6a45)]",
-  "[--_merge-added-highlight:var(--merge-added-highlight,#b0e0bc)]",
-  "dark:[--_merge-added-highlight:var(--merge-added-highlight,#2a5c3d)]",
-  "[--_merge-pending:var(--merge-pending,#fdf1d6)]",
-  "dark:[--_merge-pending:var(--merge-pending,#3f3419)]",
-  "[--_merge-pending-border:var(--merge-pending-border,#e6c470)]",
-  "dark:[--_merge-pending-border:var(--merge-pending-border,#7a6528)]",
-  "[--_merge-pending-highlight:var(--merge-pending-highlight,#f6dd9c)]",
-  "dark:[--_merge-pending-highlight:var(--merge-pending-highlight,#5d4b1b)]",
-  "[--_merge-edited:var(--merge-edited,#eadffa)]",
-  "dark:[--_merge-edited:var(--merge-edited,#3a2f55)]",
-  "[--_merge-edited-border:var(--merge-edited-border,#bba3e6)]",
-  "dark:[--_merge-edited-border:var(--merge-edited-border,#61508f)]",
-  "[--_merge-edited-highlight:var(--merge-edited-highlight,#d9c8f5)]",
-  "dark:[--_merge-edited-highlight:var(--merge-edited-highlight,#50417a)]",
-  "[--_merge-filler:var(--merge-filler,#f4f5f7)]",
-  "dark:[--_merge-filler:var(--merge-filler,#202226)]",
-  "[--_merge-filler-stripe:var(--merge-filler-stripe,#e2e5ea)]",
-  "dark:[--_merge-filler-stripe:var(--merge-filler-stripe,#2b2e33)]",
-  "[--_merge-success:var(--merge-success,#e3f4e8)]",
-  "dark:[--_merge-success:var(--merge-success,#1d3a28)]",
-  "[--_merge-success-border:var(--merge-success-border,#9bd2a9)]",
-  "dark:[--_merge-success-border:var(--merge-success-border,#2e6a45)]",
-  "[--_merge-success-icon:var(--merge-success-icon,#15803d)]",
-  "dark:[--_merge-success-icon:var(--merge-success-icon,#4ade80)]",
-  "[--_merge-warning-icon:var(--merge-warning-icon,#b45309)]",
-  "dark:[--_merge-warning-icon:var(--merge-warning-icon,#fbbf24)]",
+  "[--mcv-modified:var(--merge-modified,#dce8fd)]",
+  "dark:[--mcv-modified:var(--merge-modified,#25344f)]",
+  "[--mcv-modified-border:var(--merge-modified-border,#a4c0f2)]",
+  "dark:[--mcv-modified-border:var(--merge-modified-border,#3b5587)]",
+  "[--mcv-modified-highlight:var(--merge-modified-highlight,#b3cdfa)]",
+  "dark:[--mcv-modified-highlight:var(--merge-modified-highlight,#36507d)]",
+  "[--mcv-added:var(--merge-added,#dcf1e1)]",
+  "dark:[--mcv-added:var(--merge-added,#1d3a28)]",
+  "[--mcv-added-border:var(--merge-added-border,#9bd2a9)]",
+  "dark:[--mcv-added-border:var(--merge-added-border,#2e6a45)]",
+  "[--mcv-added-highlight:var(--merge-added-highlight,#b0e0bc)]",
+  "dark:[--mcv-added-highlight:var(--merge-added-highlight,#2a5c3d)]",
+  "[--mcv-pending:var(--merge-pending,#fdf1d6)]",
+  "dark:[--mcv-pending:var(--merge-pending,#3f3419)]",
+  "[--mcv-pending-border:var(--merge-pending-border,#e6c470)]",
+  "dark:[--mcv-pending-border:var(--merge-pending-border,#7a6528)]",
+  "[--mcv-pending-highlight:var(--merge-pending-highlight,#f6dd9c)]",
+  "dark:[--mcv-pending-highlight:var(--merge-pending-highlight,#5d4b1b)]",
+  "[--mcv-edited:var(--merge-edited,#eadffa)]",
+  "dark:[--mcv-edited:var(--merge-edited,#3a2f55)]",
+  "[--mcv-edited-border:var(--merge-edited-border,#bba3e6)]",
+  "dark:[--mcv-edited-border:var(--merge-edited-border,#61508f)]",
+  "[--mcv-edited-highlight:var(--merge-edited-highlight,#d9c8f5)]",
+  "dark:[--mcv-edited-highlight:var(--merge-edited-highlight,#50417a)]",
+  "[--mcv-filler:var(--merge-filler,#f4f5f7)]",
+  "dark:[--mcv-filler:var(--merge-filler,#202226)]",
+  "[--mcv-filler-stripe:var(--merge-filler-stripe,#e2e5ea)]",
+  "dark:[--mcv-filler-stripe:var(--merge-filler-stripe,#2b2e33)]",
+  "[--mcv-success:var(--merge-success,#e3f4e8)]",
+  "dark:[--mcv-success:var(--merge-success,#1d3a28)]",
+  "[--mcv-success-border:var(--merge-success-border,#9bd2a9)]",
+  "dark:[--mcv-success-border:var(--merge-success-border,#2e6a45)]",
+  "[--mcv-success-icon:var(--merge-success-icon,#15803d)]",
+  "dark:[--mcv-success-icon:var(--merge-success-icon,#4ade80)]",
+  "[--mcv-warning-icon:var(--merge-warning-icon,#b45309)]",
+  "dark:[--mcv-warning-icon:var(--merge-warning-icon,#fbbf24)]",
 ]
 
 // ---------------------------------------------------------------------------
@@ -120,42 +123,42 @@ interface Tint {
 // Written out in full so Tailwind can find every class.
 const TINTS = {
   modified: {
-    bg: "bg-[color:var(--_merge-modified)]",
+    bg: "bg-[color:var(--mcv-modified)]",
     rejectedBg:
-      "bg-[color:color-mix(in_srgb,var(--_merge-modified)_30%,transparent)]",
-    border: "border-[color:var(--_merge-modified-border)]",
-    mark: "bg-[color:var(--_merge-modified-highlight)]",
+      "bg-[color:color-mix(in_srgb,var(--mcv-modified)_30%,transparent)]",
+    border: "border-[color:var(--mcv-modified-border)]",
+    mark: "bg-[color:var(--mcv-modified-highlight)]",
     rejectedMark:
-      "bg-[color:color-mix(in_srgb,var(--_merge-modified-highlight)_50%,transparent)]",
+      "bg-[color:color-mix(in_srgb,var(--mcv-modified-highlight)_50%,transparent)]",
   },
   added: {
-    bg: "bg-[color:var(--_merge-added)]",
+    bg: "bg-[color:var(--mcv-added)]",
     rejectedBg:
-      "bg-[color:color-mix(in_srgb,var(--_merge-added)_30%,transparent)]",
-    border: "border-[color:var(--_merge-added-border)]",
-    mark: "bg-[color:var(--_merge-added-highlight)]",
+      "bg-[color:color-mix(in_srgb,var(--mcv-added)_30%,transparent)]",
+    border: "border-[color:var(--mcv-added-border)]",
+    mark: "bg-[color:var(--mcv-added-highlight)]",
     rejectedMark:
-      "bg-[color:color-mix(in_srgb,var(--_merge-added-highlight)_50%,transparent)]",
+      "bg-[color:color-mix(in_srgb,var(--mcv-added-highlight)_50%,transparent)]",
   },
   pending: {
-    bg: "bg-[color:var(--_merge-pending)]",
-    rejectedBg: "bg-[color:var(--_merge-pending)]",
-    border: "border-[color:var(--_merge-pending-border)]",
-    mark: "bg-[color:var(--_merge-pending-highlight)]",
-    rejectedMark: "bg-[color:var(--_merge-pending-highlight)]",
+    bg: "bg-[color:var(--mcv-pending)]",
+    rejectedBg: "bg-[color:var(--mcv-pending)]",
+    border: "border-[color:var(--mcv-pending-border)]",
+    mark: "bg-[color:var(--mcv-pending-highlight)]",
+    rejectedMark: "bg-[color:var(--mcv-pending-highlight)]",
   },
   edited: {
-    bg: "bg-[color:var(--_merge-edited)]",
-    rejectedBg: "bg-[color:var(--_merge-edited)]",
-    border: "border-[color:var(--_merge-edited-border)]",
-    mark: "bg-[color:var(--_merge-edited-highlight)]",
-    rejectedMark: "bg-[color:var(--_merge-edited-highlight)]",
+    bg: "bg-[color:var(--mcv-edited)]",
+    rejectedBg: "bg-[color:var(--mcv-edited)]",
+    border: "border-[color:var(--mcv-edited-border)]",
+    mark: "bg-[color:var(--mcv-edited-highlight)]",
+    rejectedMark: "bg-[color:var(--mcv-edited-highlight)]",
   },
   filler: {
-    bg: "bg-[color:var(--_merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--_merge-filler-stripe)_5px_6px)]",
+    bg: "bg-[color:var(--mcv-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--mcv-filler-stripe)_5px_6px)]",
     rejectedBg:
-      "bg-[color:var(--_merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--_merge-filler-stripe)_5px_6px)]",
-    border: "border-[color:var(--_merge-filler-stripe)]",
+      "bg-[color:var(--mcv-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--mcv-filler-stripe)_5px_6px)]",
+    border: "border-[color:var(--mcv-filler-stripe)]",
     mark: "",
     rejectedMark: "",
   },
@@ -449,18 +452,18 @@ function MergeConflictToolbar({
 
 const STATUS_STYLES = {
   empty: {
-    box: "border-border bg-[color:var(--_merge-filler)]",
+    box: "border-border bg-[color:var(--mcv-filler)]",
     icon: "text-muted-foreground",
     Icon: Info,
   },
   pending: {
-    box: "border-[color:var(--_merge-pending-border)] bg-[color:var(--_merge-pending)]",
-    icon: "text-[color:var(--_merge-warning-icon)]",
+    box: "border-[color:var(--mcv-pending-border)] bg-[color:var(--mcv-pending)]",
+    icon: "text-[color:var(--mcv-warning-icon)]",
     Icon: CircleAlert,
   },
   resolved: {
-    box: "border-[color:var(--_merge-success-border)] bg-[color:var(--_merge-success)]",
-    icon: "text-[color:var(--_merge-success-icon)]",
+    box: "border-[color:var(--mcv-success-border)] bg-[color:var(--mcv-success)]",
+    icon: "text-[color:var(--mcv-success-icon)]",
     Icon: CircleCheck,
   },
 } as const
@@ -722,7 +725,7 @@ function MergeConflictFold({ item }: { item: MergeViewerFold }) {
         <button
           key={pane}
           {...viewer.getFoldProps(item, pane)}
-          className="flex items-center justify-center border-y border-dashed bg-[color:var(--_merge-filler)] px-2 py-0.5 font-sans text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className="flex items-center justify-center border-y border-dashed bg-[color:var(--mcv-filler)] px-2 py-0.5 font-sans text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
           ⋯ {item.label}
         </button>

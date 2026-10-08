@@ -221,7 +221,7 @@ The variables are optional. If your CSS does not define one (you copied the file
 
 ### Tailwind v3.4 and v4
 
-The same file works with both. It only uses utilities that exist in both (typed arbitrary values such as `bg-[color:var(--_merge-modified)]`, `size-*`, no v4-only syntax) and computes the colour classes per cell in JavaScript, so there are no variant-order surprises. The registry test installs the component into a fresh Tailwind v3.4 project and a fresh v4 project, type-checks them and builds the CSS.
+The same file works with both. It only uses utilities that exist in both (typed arbitrary values such as `bg-[color:var(--mcv-modified)]`, `size-*`, no v4-only syntax) and computes the colour classes per cell in JavaScript, so there are no variant-order surprises. The registry test installs the component into a fresh Tailwind v3.4 project and a fresh v4 project, type-checks them and builds the CSS.
 
 Tailwind v3 projects keep their theme in `tailwind.config.js`; the `--merge-*` variables are plain CSS variables referenced through arbitrary values, so nothing needs to be added to the config.
 
