@@ -1,12 +1,61 @@
 name: CI/CD for merge-conflict-viewer
 
 on:
+  pull_request:
   push:
     branches:
       - main
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  release:
+  verify:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            demo/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix demo ci
+
+      - name: Lint and format
+        run: npm run check:ci
+
+      - name: Test (headless package)
+        run: npm test
+
+      - name: Test (registry component)
+        run: npm run test:demo
+
+      - name: Build package
+        run: npm run build:ci
+
+      - name: Verify the published tarball
+        run: npm run test:package
+
+      - name: Verify the shadcn registry installs (Tailwind v3 and v4)
+        run: npm run test:registry
+
+  publish:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     permissions:
@@ -20,19 +69,23 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
       - name: Build
-        run: npm run build
+        run: npm run build:ci
 
-      - name: Publish to npm
-        run: npm publish --provenance --access public
+      - name: Publish to npm (only when this version is new)
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already published, skipping."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NPM_CONFIG_PROVENANCE: true
