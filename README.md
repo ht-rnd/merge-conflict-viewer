@@ -182,19 +182,44 @@ The component is styled with your shadcn tokens (`bg-background`, `text-muted-fo
 | `--merge-filler`, `--merge-filler-stripe` | The hatched space opposite a missing key |
 | `--merge-success`, `-border`, `-icon`, `--merge-warning-icon` | The banner |
 
-The variables are optional. If your CSS does not define one (you copied the file by hand, or deleted them), the component falls back to the same light and dark defaults built into the file, so it is never uncoloured. Anything you define wins over the default.
+### Changing the colours
 
-Change them in your CSS file, or override them on one viewer only:
+There are three ways, from least to most invasive. Use whichever fits.
+
+**1. In your stylesheet (everywhere).** Edit the variables the install command added to your CSS, in `:root` for light and in `.dark` for dark mode:
+
+```css
+:root {
+  --merge-modified: #e0f2fe;
+  --merge-added: #dcfce7;
+}
+.dark {
+  --merge-modified: #0c4a6e;
+}
+```
+
+**2. On one viewer.** Set the variables on the viewer or any ancestor. Add a `dark:` version if the colour should also change in dark mode:
 
 ```tsx
-<MergeConflictViewer className="[--merge-modified:#fde2e4] [--merge-modified-border:#f4a3ad]" ... />
+<MergeConflictViewer
+  className="[--merge-modified:#fde2e4] [--merge-modified-border:#f4a3ad] dark:[--merge-modified:#4a2128]"
+  ...
+/>
 ```
+
+**3. In the source.** The component is your code, so you can edit it directly (`components/ui/merge-conflict-viewer.tsx`):
+
+- `MERGE_DEFAULTS` at the top holds the built-in light and dark colour for every variable. Edit a hex value to change what is used when your CSS does not define the variable.
+- `TINTS` decides which variable colours which kind of cell, and `STATUS_STYLES` does the same for the banner. Point an entry at a shadcn token instead (for example `bg-muted`), or remove the highlight you don't want.
+- Everything else (spacing, text size, icons, the toolbar buttons) is plain Tailwind classes in the same file.
+
+The variables are optional. If your CSS does not define one (you copied the file by hand, or deleted them), the component falls back to the defaults in `MERGE_DEFAULTS`, so it is never uncoloured. Anything you define wins over the default. If you rename or add a colour in the source, define it in `MERGE_DEFAULTS` too.
 
 **Dark mode** is whatever your app uses for shadcn (the `dark` class on an ancestor). **Fonts** are not set by the component: the viewer inherits your `font-sans` and uses `font-mono` for the code panes, so Geist or any other font you configured is picked up. Since the file is in your repo, you can also change the text size (`text-[13px]`) or colours directly.
 
 ### Tailwind v3.4 and v4
 
-The same file works with both. It only uses utilities that exist in both (typed arbitrary values such as `bg-[color:var(--merge-modified)]`, `size-*`, no v4-only syntax) and computes the colour classes per cell in JavaScript, so there are no variant-order surprises. The registry test installs the component into a fresh Tailwind v3.4 project and a fresh v4 project, type-checks them and builds the CSS.
+The same file works with both. It only uses utilities that exist in both (typed arbitrary values such as `bg-[color:var(--_merge-modified)]`, `size-*`, no v4-only syntax) and computes the colour classes per cell in JavaScript, so there are no variant-order surprises. The registry test installs the component into a fresh Tailwind v3.4 project and a fresh v4 project, type-checks them and builds the CSS.
 
 Tailwind v3 projects keep their theme in `tailwind.config.js`; the `--merge-*` variables are plain CSS variables referenced through arbitrary values, so nothing needs to be added to the config.
 
