@@ -1,27 +1,25 @@
-import {
-  MergeConflictViewer,
-  type MergeConflictViewerHandle,
-  type MergeStatus,
-} from "@mcv"
-import { useRef, useState } from "react"
+import { useMergeViewer } from "@ht-rnd/merge-conflict-viewer"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import {
+  MergeConflictPanes,
+  MergeConflictStatus,
+  MergeConflictToolbar,
+  MergeConflictViewer,
+} from "@/components/ui/merge-conflict-viewer"
 import { type InitialResult, ViewerConfig } from "../components/ViewerConfig"
 import { defaultExampleKey, examples } from "../data/examples"
+
+type Layout = "horizontal" | "vertical" | "responsive"
 
 export function Viewer() {
   const [selectedExample, setSelectedExample] =
     useState<string>(defaultExampleKey)
-  const [layout, setLayout] = useState<
-    "horizontal" | "vertical" | "responsive"
-  >("responsive")
+  const [layout, setLayout] = useState<Layout>("responsive")
   const [height, setHeight] = useState<string>("600px")
   const [initialResult, setInitialResult] = useState<InitialResult>("none")
   const [editable, setEditable] = useState(true)
   const [collapseUnchanged, setCollapseUnchanged] = useState(false)
-
-  const viewerRef = useRef<MergeConflictViewerHandle>(null)
-  const [status, setStatus] = useState<MergeStatus | null>(null)
-  const [saved, setSaved] = useState<string | null>(null)
 
   const example = examples[selectedExample]
   const initialMergedJson =
@@ -50,36 +48,69 @@ export function Viewer() {
 
       <p className="text-2xl font-medium">Merge Conflict Viewer</p>
 
-      <MergeConflictViewer
+      <ResolveAndSave
         key={`${selectedExample}-${initialResult}-${collapseUnchanged}`}
-        ref={viewerRef}
-        currentJson={example.current}
-        incomingJson={example.incoming}
+        current={example.current}
+        incoming={example.incoming}
         initialMergedJson={initialMergedJson}
         layout={layout}
         height={height}
         editable={editable}
         collapseUnchanged={collapseUnchanged}
-        onMergeChange={(_merged, next) => {
-          setStatus(next)
-          setSaved(null)
-        }}
       />
+
+      <Composition />
+    </div>
+  )
+}
+
+/**
+ * The viewer plus a save button that stays disabled until every change is
+ * decided. The hook is called here, so the page can read the merge state.
+ */
+function ResolveAndSave({
+  current,
+  incoming,
+  initialMergedJson,
+  layout,
+  height,
+  editable,
+  collapseUnchanged,
+}: {
+  current: Record<string, unknown>
+  incoming: Record<string, unknown>
+  initialMergedJson?: Record<string, unknown>
+  layout: Layout
+  height: string
+  editable: boolean
+  collapseUnchanged: boolean
+}) {
+  const viewer = useMergeViewer({
+    currentJson: current,
+    incomingJson: incoming,
+    initialMergedJson,
+    layout,
+    editable,
+    collapseUnchanged,
+  })
+  const [saved, setSaved] = useState<string | null>(null)
+
+  return (
+    <>
+      <MergeConflictViewer viewer={viewer} style={{ height }} />
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Button
-            disabled={!status?.allResolved}
-            onClick={() =>
-              setSaved(JSON.stringify(viewerRef.current?.getResult(), null, 2))
-            }
+            disabled={!viewer.status.allResolved}
+            onClick={() => setSaved(JSON.stringify(viewer.merged, null, 2))}
           >
             Save merge
           </Button>
           <span className="text-sm text-muted-foreground">
-            {status?.allResolved
+            {viewer.status.allResolved
               ? "Everything is resolved, so saving is safe."
-              : `Disabled until every change is decided (${status?.unresolved ?? 0} left).`}
+              : `Disabled until every change is decided (${viewer.status.unresolved} left).`}
           </span>
         </div>
         {saved && (
@@ -88,6 +119,44 @@ export function Viewer() {
           </pre>
         )}
       </div>
+    </>
+  )
+}
+
+const small = {
+  current: { name: "api", retries: 3, region: "eu", debug: true },
+  incoming: { name: "api", retries: 5, region: "us", flags: ["beta"] },
+}
+
+/** The same parts, arranged differently: status first, no toolbar. */
+function Composition() {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-2xl font-medium">Composition</p>
+      <p className="text-sm text-muted-foreground">
+        Pass children to arrange the parts yourself: here the status banner sits
+        above the panes and there is no toolbar. Colours come from the theme
+        variables, so overriding them re-themes just this viewer.
+      </p>
+      <MergeConflictViewer
+        currentJson={small.current}
+        incomingJson={small.incoming}
+        layout="vertical"
+        className="h-96 [--merge-modified:#fde2e4] [--merge-modified-border:#f4a3ad] [--merge-modified-highlight:#f9c0c7]"
+      >
+        <MergeConflictStatus />
+        <MergeConflictPanes />
+      </MergeConflictViewer>
+
+      <MergeConflictViewer
+        currentJson={small.current}
+        incomingJson={small.incoming}
+        collapseUnchanged
+        className="h-96"
+      >
+        <MergeConflictToolbar />
+        <MergeConflictPanes />
+      </MergeConflictViewer>
     </div>
   )
 }

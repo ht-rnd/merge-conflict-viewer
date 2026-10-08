@@ -7,7 +7,6 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -48,26 +47,6 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-
-  /* Merge conflict viewer (added by the registry item) */
-  --merge-modified: #dce8fd;
-  --merge-modified-border: #a4c0f2;
-  --merge-modified-highlight: #b3cdfa;
-  --merge-added: #dcf1e1;
-  --merge-added-border: #9bd2a9;
-  --merge-added-highlight: #b0e0bc;
-  --merge-pending: #fdf1d6;
-  --merge-pending-border: #e6c470;
-  --merge-pending-highlight: #f6dd9c;
-  --merge-edited: #eadffa;
-  --merge-edited-border: #bba3e6;
-  --merge-edited-highlight: #d9c8f5;
-  --merge-filler: #f4f5f7;
-  --merge-filler-stripe: #e2e5ea;
-  --merge-success: #e3f4e8;
-  --merge-success-border: #9bd2a9;
-  --merge-success-icon: #15803d;
-  --merge-warning-icon: #b45309;
 }
 
 .dark {
@@ -89,25 +68,6 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-
-  --merge-modified: #25344f;
-  --merge-modified-border: #3b5587;
-  --merge-modified-highlight: #36507d;
-  --merge-added: #1d3a28;
-  --merge-added-border: #2e6a45;
-  --merge-added-highlight: #2a5c3d;
-  --merge-pending: #3f3419;
-  --merge-pending-border: #7a6528;
-  --merge-pending-highlight: #5d4b1b;
-  --merge-edited: #3a2f55;
-  --merge-edited-border: #61508f;
-  --merge-edited-highlight: #50417a;
-  --merge-filler: #202226;
-  --merge-filler-stripe: #2b2e33;
-  --merge-success: #1d3a28;
-  --merge-success-border: #2e6a45;
-  --merge-success-icon: #4ade80;
-  --merge-warning-icon: #fbbf24;
 }
 
 @layer base {

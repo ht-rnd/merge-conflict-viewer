@@ -23,9 +23,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@mcv": ["../src/lib/index.ts"]
+      "@ht-rnd/merge-conflict-viewer": ["../src/lib/index.ts"]
     }
   },
-  "include": ["src", "../src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "../src/lib"],
+  "exclude": ["node_modules", "dist", "../src/lib/**/*.test.ts"]
 }
