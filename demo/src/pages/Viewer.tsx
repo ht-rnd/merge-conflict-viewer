@@ -142,7 +142,7 @@ function Composition() {
         currentJson={small.current}
         incomingJson={small.incoming}
         layout="vertical"
-        className="h-96 [--merge-modified:#fde2e4] [--merge-modified-border:#f4a3ad] [--merge-modified-highlight:#f9c0c7]"
+        className="h-96 [--merge-modified:#fde2e4] [--merge-modified-border:#f4a3ad] [--merge-modified-highlight:#f9c0c7] dark:[--merge-modified:#4a2128] dark:[--merge-modified-border:#8a3b46] dark:[--merge-modified-highlight:#6b2b35]"
       >
         <MergeConflictStatus />
         <MergeConflictPanes />
