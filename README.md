@@ -4,6 +4,8 @@ Let users resolve the differences between two JSON documents in a React app, and
 
 ![Merge Conflict Viewer: Current, Result and Incoming panes with an unresolved-changes banner](docs/viewer-in-progress.png)
 
+[Live demo](https://ht-rnd.github.io/merge-conflict-viewer/): try the component, switch its colours and corners, and open the playground.
+
 You give it a **current** and an **incoming** document. It shows them side by side with a live **result** in the middle (the layout you know from IntelliJ's merge tool). For every difference the user accepts the current value, accepts the incoming value, removes it, or types their own. You get the merged document, and a status that says whether every difference has been decided.
 
 It ships in two parts:
@@ -110,7 +112,7 @@ Every difference is a **change**: a value that differs, a key or array item that
 
 A change starts **unresolved**: the Result pane shows the incoming value on an amber background, and neither side is highlighted as accepted. (An unresolved change that only exists in current is absent from the result, because incoming does not have it.) Once the user decides, the change turns into a normal blue (modified) or green (one side only) block, the side that was not chosen fades, and the banner (with a progress bar) counts down. When nothing is left:
 
-![Banner reading "All 11 changes resolved. Safe to merge." and an edited value shown in violet](docs/viewer-resolved.png)
+![Banner reading "All 11 changes resolved. Safe to merge." with the chosen values marked in each pane](docs/viewer-resolved.png)
 
 ## The component
 
