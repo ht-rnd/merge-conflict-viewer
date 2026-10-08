@@ -182,6 +182,8 @@ The component is styled with your shadcn tokens (`bg-background`, `text-muted-fo
 | `--merge-filler`, `--merge-filler-stripe` | The hatched space opposite a missing key |
 | `--merge-success`, `-border`, `-icon`, `--merge-warning-icon` | The banner |
 
+The variables are optional. If your CSS does not define one (you copied the file by hand, or deleted them), the component falls back to the same light and dark defaults built into the file, so it is never uncoloured. Anything you define wins over the default.
+
 Change them in your CSS file, or override them on one viewer only:
 
 ```tsx

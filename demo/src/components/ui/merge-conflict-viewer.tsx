@@ -46,13 +46,64 @@ import { cn } from "@/lib/utils"
  * decides how things look, so change anything here freely.
  *
  * Colours: the merge colours are the `--merge-*` variables added to your CSS by
- * the registry item; everything else uses your shadcn tokens (`background`,
+ * the registry item (with built-in defaults if they are missing); everything else uses your shadcn tokens (`background`,
  * `border`, `muted-foreground`, `primary`, `destructive`, ...). Fonts are
  * inherited, the code panes use `font-mono`.
  *
  * Works with Tailwind v3.4 and v4: arbitrary values carry an explicit type
  * (`bg-[color:var(--x)]`) and no v4-only syntax is used.
  */
+
+// ---------------------------------------------------------------------------
+// Colour defaults
+// ---------------------------------------------------------------------------
+
+/*
+ * Every colour below resolves to your `--merge-*` variable when your CSS defines
+ * it, and to the built-in default otherwise (light, and a dark one under
+ * `.dark`). The classes read the private `--_merge-*` copies, which are set once
+ * on the root, so deleting the variables from your CSS never leaves the viewer
+ * uncoloured, and overriding `--merge-*` on the root or any ancestor still wins.
+ * Keep these in step with `cssVars` in registry.json (a test checks it).
+ */
+const MERGE_DEFAULTS = [
+  "[--_merge-modified:var(--merge-modified,#dce8fd)]",
+  "dark:[--_merge-modified:var(--merge-modified,#25344f)]",
+  "[--_merge-modified-border:var(--merge-modified-border,#a4c0f2)]",
+  "dark:[--_merge-modified-border:var(--merge-modified-border,#3b5587)]",
+  "[--_merge-modified-highlight:var(--merge-modified-highlight,#b3cdfa)]",
+  "dark:[--_merge-modified-highlight:var(--merge-modified-highlight,#36507d)]",
+  "[--_merge-added:var(--merge-added,#dcf1e1)]",
+  "dark:[--_merge-added:var(--merge-added,#1d3a28)]",
+  "[--_merge-added-border:var(--merge-added-border,#9bd2a9)]",
+  "dark:[--_merge-added-border:var(--merge-added-border,#2e6a45)]",
+  "[--_merge-added-highlight:var(--merge-added-highlight,#b0e0bc)]",
+  "dark:[--_merge-added-highlight:var(--merge-added-highlight,#2a5c3d)]",
+  "[--_merge-pending:var(--merge-pending,#fdf1d6)]",
+  "dark:[--_merge-pending:var(--merge-pending,#3f3419)]",
+  "[--_merge-pending-border:var(--merge-pending-border,#e6c470)]",
+  "dark:[--_merge-pending-border:var(--merge-pending-border,#7a6528)]",
+  "[--_merge-pending-highlight:var(--merge-pending-highlight,#f6dd9c)]",
+  "dark:[--_merge-pending-highlight:var(--merge-pending-highlight,#5d4b1b)]",
+  "[--_merge-edited:var(--merge-edited,#eadffa)]",
+  "dark:[--_merge-edited:var(--merge-edited,#3a2f55)]",
+  "[--_merge-edited-border:var(--merge-edited-border,#bba3e6)]",
+  "dark:[--_merge-edited-border:var(--merge-edited-border,#61508f)]",
+  "[--_merge-edited-highlight:var(--merge-edited-highlight,#d9c8f5)]",
+  "dark:[--_merge-edited-highlight:var(--merge-edited-highlight,#50417a)]",
+  "[--_merge-filler:var(--merge-filler,#f4f5f7)]",
+  "dark:[--_merge-filler:var(--merge-filler,#202226)]",
+  "[--_merge-filler-stripe:var(--merge-filler-stripe,#e2e5ea)]",
+  "dark:[--_merge-filler-stripe:var(--merge-filler-stripe,#2b2e33)]",
+  "[--_merge-success:var(--merge-success,#e3f4e8)]",
+  "dark:[--_merge-success:var(--merge-success,#1d3a28)]",
+  "[--_merge-success-border:var(--merge-success-border,#9bd2a9)]",
+  "dark:[--_merge-success-border:var(--merge-success-border,#2e6a45)]",
+  "[--_merge-success-icon:var(--merge-success-icon,#15803d)]",
+  "dark:[--_merge-success-icon:var(--merge-success-icon,#4ade80)]",
+  "[--_merge-warning-icon:var(--merge-warning-icon,#b45309)]",
+  "dark:[--_merge-warning-icon:var(--merge-warning-icon,#fbbf24)]",
+]
 
 // ---------------------------------------------------------------------------
 // Look of the cells
@@ -69,42 +120,42 @@ interface Tint {
 // Written out in full so Tailwind can find every class.
 const TINTS = {
   modified: {
-    bg: "bg-[color:var(--merge-modified)]",
+    bg: "bg-[color:var(--_merge-modified)]",
     rejectedBg:
-      "bg-[color:color-mix(in_srgb,var(--merge-modified)_30%,transparent)]",
-    border: "border-[color:var(--merge-modified-border)]",
-    mark: "bg-[color:var(--merge-modified-highlight)]",
+      "bg-[color:color-mix(in_srgb,var(--_merge-modified)_30%,transparent)]",
+    border: "border-[color:var(--_merge-modified-border)]",
+    mark: "bg-[color:var(--_merge-modified-highlight)]",
     rejectedMark:
-      "bg-[color:color-mix(in_srgb,var(--merge-modified-highlight)_50%,transparent)]",
+      "bg-[color:color-mix(in_srgb,var(--_merge-modified-highlight)_50%,transparent)]",
   },
   added: {
-    bg: "bg-[color:var(--merge-added)]",
+    bg: "bg-[color:var(--_merge-added)]",
     rejectedBg:
-      "bg-[color:color-mix(in_srgb,var(--merge-added)_30%,transparent)]",
-    border: "border-[color:var(--merge-added-border)]",
-    mark: "bg-[color:var(--merge-added-highlight)]",
+      "bg-[color:color-mix(in_srgb,var(--_merge-added)_30%,transparent)]",
+    border: "border-[color:var(--_merge-added-border)]",
+    mark: "bg-[color:var(--_merge-added-highlight)]",
     rejectedMark:
-      "bg-[color:color-mix(in_srgb,var(--merge-added-highlight)_50%,transparent)]",
+      "bg-[color:color-mix(in_srgb,var(--_merge-added-highlight)_50%,transparent)]",
   },
   pending: {
-    bg: "bg-[color:var(--merge-pending)]",
-    rejectedBg: "bg-[color:var(--merge-pending)]",
-    border: "border-[color:var(--merge-pending-border)]",
-    mark: "bg-[color:var(--merge-pending-highlight)]",
-    rejectedMark: "bg-[color:var(--merge-pending-highlight)]",
+    bg: "bg-[color:var(--_merge-pending)]",
+    rejectedBg: "bg-[color:var(--_merge-pending)]",
+    border: "border-[color:var(--_merge-pending-border)]",
+    mark: "bg-[color:var(--_merge-pending-highlight)]",
+    rejectedMark: "bg-[color:var(--_merge-pending-highlight)]",
   },
   edited: {
-    bg: "bg-[color:var(--merge-edited)]",
-    rejectedBg: "bg-[color:var(--merge-edited)]",
-    border: "border-[color:var(--merge-edited-border)]",
-    mark: "bg-[color:var(--merge-edited-highlight)]",
-    rejectedMark: "bg-[color:var(--merge-edited-highlight)]",
+    bg: "bg-[color:var(--_merge-edited)]",
+    rejectedBg: "bg-[color:var(--_merge-edited)]",
+    border: "border-[color:var(--_merge-edited-border)]",
+    mark: "bg-[color:var(--_merge-edited-highlight)]",
+    rejectedMark: "bg-[color:var(--_merge-edited-highlight)]",
   },
   filler: {
-    bg: "bg-[color:var(--merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--merge-filler-stripe)_5px_6px)]",
+    bg: "bg-[color:var(--_merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--_merge-filler-stripe)_5px_6px)]",
     rejectedBg:
-      "bg-[color:var(--merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--merge-filler-stripe)_5px_6px)]",
-    border: "border-[color:var(--merge-filler-stripe)]",
+      "bg-[color:var(--_merge-filler)] bg-[image:repeating-linear-gradient(135deg,transparent_0_5px,var(--_merge-filler-stripe)_5px_6px)]",
+    border: "border-[color:var(--_merge-filler-stripe)]",
     mark: "",
     rejectedMark: "",
   },
@@ -191,7 +242,11 @@ function MergeConflictViewerRoot({
           ref={ref}
           role="group"
           data-slot="merge-conflict-viewer"
-          className={cn("flex min-h-0 flex-col gap-2", className)}
+          className={cn(
+            "flex min-h-0 flex-col gap-2",
+            MERGE_DEFAULTS,
+            className,
+          )}
           {...rootProps}
           {...props}
           onKeyDown={(event) => {
@@ -394,18 +449,18 @@ function MergeConflictToolbar({
 
 const STATUS_STYLES = {
   empty: {
-    box: "border-border bg-[color:var(--merge-filler)]",
+    box: "border-border bg-[color:var(--_merge-filler)]",
     icon: "text-muted-foreground",
     Icon: Info,
   },
   pending: {
-    box: "border-[color:var(--merge-pending-border)] bg-[color:var(--merge-pending)]",
-    icon: "text-[color:var(--merge-warning-icon)]",
+    box: "border-[color:var(--_merge-pending-border)] bg-[color:var(--_merge-pending)]",
+    icon: "text-[color:var(--_merge-warning-icon)]",
     Icon: CircleAlert,
   },
   resolved: {
-    box: "border-[color:var(--merge-success-border)] bg-[color:var(--merge-success)]",
-    icon: "text-[color:var(--merge-success-icon)]",
+    box: "border-[color:var(--_merge-success-border)] bg-[color:var(--_merge-success)]",
+    icon: "text-[color:var(--_merge-success-icon)]",
     Icon: CircleCheck,
   },
 } as const
@@ -667,7 +722,7 @@ function MergeConflictFold({ item }: { item: MergeViewerFold }) {
         <button
           key={pane}
           {...viewer.getFoldProps(item, pane)}
-          className="flex items-center justify-center border-y border-dashed bg-[color:var(--merge-filler)] px-2 py-0.5 font-sans text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className="flex items-center justify-center border-y border-dashed bg-[color:var(--_merge-filler)] px-2 py-0.5 font-sans text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
           ⋯ {item.label}
         </button>

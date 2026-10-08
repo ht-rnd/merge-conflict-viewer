@@ -66,13 +66,33 @@ describe("registry item", () => {
   it("defines every colour the component uses, in light and dark", () => {
     const source = read(item.files[0].path)
     const used = new Set(
-      [...source.matchAll(/var\(--(merge-[\w-]+)\)/g)].map((match) => match[1]),
+      [...source.matchAll(/var\(--_(merge-[\w-]+)\)/g)].map(
+        (match) => match[1],
+      ),
     )
     expect(used.size).toBeGreaterThan(0)
     for (const name of used) {
       expect(item.cssVars.light, `light ${name}`).toHaveProperty(name)
       expect(item.cssVars.dark, `dark ${name}`).toHaveProperty(name)
     }
+  })
+
+  it("falls back to the shipped colours when the variables are missing", () => {
+    const source = read(item.files[0].path)
+    // "[--_merge-x:var(--merge-x,#hex)]" for light, "dark:[...]" for dark.
+    const fallbacks = (prefix: string) =>
+      Object.fromEntries(
+        [
+          ...source.matchAll(
+            new RegExp(
+              `"${prefix}\\[--_(merge-[\\w-]+):var\\(--merge-[\\w-]+,([^)]+)\\)\\]"`,
+              "g",
+            ),
+          ),
+        ].map((match) => [match[1], match[2]]),
+      )
+    expect(fallbacks("")).toEqual(item.cssVars.light)
+    expect(fallbacks("dark:")).toEqual(item.cssVars.dark)
   })
 
   it("has the same colours in the demo stylesheet as it ships", () => {
