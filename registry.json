@@ -22,7 +22,7 @@
       ],
       "files": [
         {
-          "path": "src/components/ui/merge-conflict-viewer.tsx",
+          "path": "demo/src/components/ui/merge-conflict-viewer.tsx",
           "type": "registry:ui"
         }
       ],

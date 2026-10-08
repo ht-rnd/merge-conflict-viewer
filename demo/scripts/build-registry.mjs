@@ -11,10 +11,10 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
-const demo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const read = (file) => JSON.parse(readFileSync(path.join(demo, file), "utf8"))
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
+const read = (file) => JSON.parse(readFileSync(path.join(root, file), "utf8"))
 
-const { name, version } = read("../package.json")
+const { name, version } = read("package.json")
 const registry = read("registry.json")
 
 for (const item of registry.items) {
@@ -31,4 +31,12 @@ for (const item of registry.items) {
   }
 }
 
-execSync("npx shadcn build", { cwd: demo, stdio: "inherit" })
+// registry.json sits at the repository root so the repository is also a GitHub
+// registry; the built files go to the demo so Pages serves them.
+const demo = path.join(root, "demo")
+// Run from demo/ so npx finds the shadcn CLI installed there, but build the
+// registry from the repository root.
+execSync("npx shadcn build ./registry.json --output ./demo/public/r --cwd ..", {
+  cwd: demo,
+  stdio: "inherit",
+})

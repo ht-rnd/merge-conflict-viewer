@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
-const demo = path.resolve(__dirname, "..")
-const read = (file: string) => readFileSync(path.join(demo, file), "utf8")
+// registry.json lives at the repository root (so it also works as a GitHub
+// registry); its file paths are relative to that root.
+const root = path.resolve(__dirname, "../..")
+const read = (file: string) => readFileSync(path.join(root, file), "utf8")
 
-const pkg = JSON.parse(read("../package.json")) as {
+const pkg = JSON.parse(read("package.json")) as {
   name: string
   version: string
 }
@@ -74,7 +76,7 @@ describe("registry item", () => {
   })
 
   it("has the same colours in the demo stylesheet as it ships", () => {
-    const css = read("src/index.css")
+    const css = read("demo/src/index.css")
     expect(cssBlock(css, ":root")).toMatchObject(item.cssVars.light)
     expect(cssBlock(css, ".dark")).toMatchObject(item.cssVars.dark)
   })

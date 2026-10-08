@@ -515,7 +515,7 @@ npm run test:demo       # registry component tests (vitest + jsdom)
 npm run check           # lint and format with Biome, writing fixes
 npm run build           # lint, then build the package into dist/
 npm run test:package    # pack the tarball and use it as a consumer would
-npm run registry:build  # build demo/public/r/*.json from demo/registry.json
+npm run registry:build  # build demo/public/r/*.json from registry.json
 npm run test:registry   # install the component into fresh Tailwind v3.4 and v4 projects (slow, needs network)
 ```
 
@@ -525,7 +525,7 @@ The demo app lives in `demo/` (Vite, Tailwind v4, shadcn/ui). It is the source o
 npm run dev
 ```
 
-CI runs all of the above on every pull request. On `main`, a new version in `package.json` is published to npm (with provenance) and tagged as a GitHub release. When you change the package API, bump the version and keep the `@ht-rnd/merge-conflict-viewer@^x.y.z` range in `demo/registry.json` in step (`registry:build` fails when they disagree).
+CI runs all of the above on every pull request. On `main`, a new version in `package.json` is published to npm (with provenance) and tagged as a GitHub release. When you change the package API, bump the version and keep the `@ht-rnd/merge-conflict-viewer@^x.y.z` range in `registry.json` in step (`registry:build` fails when they disagree).
 
 ## License
 
