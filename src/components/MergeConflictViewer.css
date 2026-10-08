@@ -1,31 +1,600 @@
-.mcv-old-only .diff {
-  width: 200%;
+/*
+ * Merge conflict viewer: three aligned panes (current | result | incoming)
+ * laid out on one CSS grid so every pane shares the same row heights.
+ *
+ *   code | actions | no   no | code   no | actions | code
+ *   -------- current -----  -- result --  ----- incoming ----
+ *
+ * Self-contained: no Tailwind and no other stylesheet is required. Every colour
+ * is a --mcv-* variable. When the host app defines shadcn/ui tokens
+ * (--background, --foreground, --border, ...) they are picked up, otherwise
+ * the fallbacks below apply. Add `dark` to the viewer or an ancestor for dark
+ * mode. Override any --mcv-* variable on `.mcv-root` to re-theme.
+ */
+
+.mcv-root {
+  --mcv-bg: hsl(var(--background, 0 0% 100%));
+  --mcv-fg: hsl(var(--foreground, 240 10% 4%));
+  --mcv-muted: hsl(var(--muted-foreground, 240 4% 42%));
+  --mcv-border: hsl(var(--border, 240 6% 90%));
+  --mcv-ring: hsl(var(--ring, 221 83% 53%));
+
+  --mcv-modified-bg: #dce8fd;
+  --mcv-modified-edge: #a4c0f2;
+  --mcv-modified-edit: #b3cdfa;
+  --mcv-added-bg: #dcf1e1;
+  --mcv-added-edge: #9bd2a9;
+  --mcv-added-edit: #b0e0bc;
+  --mcv-filler-bg: #f4f5f7;
+  --mcv-filler-line: #e2e5ea;
+  --mcv-pending-bg: #fdf1d6;
+  --mcv-pending-edge: #e6c470;
+  --mcv-pending-edit: #f6dd9c;
+  --mcv-edited-bg: #eadffa;
+  --mcv-edited-edge: #bba3e6;
+  --mcv-edited-edit: #d9c8f5;
+  --mcv-success-bg: #e3f4e8;
+  --mcv-success-edge: #9bd2a9;
+  --mcv-success-icon: #15803d;
+  --mcv-warning-icon: #b45309;
+  --mcv-accent: #2563eb;
+  --mcv-danger: #dc2626;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--mcv-fg);
 }
 
-.mcv-new-only .diff {
-  width: 200%;
-  transform: translateX(-50%);
+.dark .mcv-root,
+.mcv-root.dark {
+  --mcv-bg: hsl(var(--background, 240 10% 4%));
+  --mcv-fg: hsl(var(--foreground, 0 0% 98%));
+  --mcv-muted: hsl(var(--muted-foreground, 240 5% 65%));
+  --mcv-border: hsl(var(--border, 240 4% 18%));
+  --mcv-ring: hsl(var(--ring, 217 91% 65%));
+
+  --mcv-modified-bg: #25344f;
+  --mcv-modified-edge: #3b5587;
+  --mcv-modified-edit: #36507d;
+  --mcv-added-bg: #1d3a28;
+  --mcv-added-edge: #2e6a45;
+  --mcv-added-edit: #2a5c3d;
+  --mcv-filler-bg: #202226;
+  --mcv-filler-line: #2b2e33;
+  --mcv-pending-bg: #3f3419;
+  --mcv-pending-edge: #7a6528;
+  --mcv-pending-edit: #5d4b1b;
+  --mcv-edited-bg: #3a2f55;
+  --mcv-edited-edge: #61508f;
+  --mcv-edited-edit: #50417a;
+  --mcv-success-bg: #1d3a28;
+  --mcv-success-edge: #2e6a45;
+  --mcv-success-icon: #4ade80;
+  --mcv-warning-icon: #fbbf24;
+  --mcv-accent: #60a5fa;
+  --mcv-danger: #f87171;
 }
 
-.diff-gutter {
-  cursor: default;
+/* ---- Toolbar & status -------------------------------------------------- */
+
+.mcv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mcv-toolbar-group {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.mcv-summary {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--mcv-muted);
+}
+
+.mcv-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--mcv-fg);
+  background-color: var(--mcv-bg);
+  border: 1px solid var(--mcv-border);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.mcv-button:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--mcv-fg) 7%, var(--mcv-bg));
+}
+
+.mcv-button:focus-visible {
+  outline: 2px solid var(--mcv-ring);
+  outline-offset: 2px;
+}
+
+.mcv-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mcv-button[aria-pressed="true"] {
+  border-color: var(--mcv-accent);
+  background-color: color-mix(in srgb, var(--mcv-accent) 14%, var(--mcv-bg));
+}
+
+.mcv-button-icon {
+  width: 2rem;
+  padding: 0;
+}
+
+.mcv-button-small {
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.mcv-button-primary {
+  color: #fff;
+  background-color: var(--mcv-accent);
+  border-color: var(--mcv-accent);
+}
+
+.mcv-button-primary:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--mcv-accent) 88%, #000);
+}
+
+.mcv-status {
+  --status-bg: var(--mcv-filler-bg);
+  --status-edge: var(--mcv-border);
+  --status-icon: var(--mcv-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background-color: var(--status-bg);
+  border: 1px solid var(--status-edge);
+  border-radius: 0.5rem;
+}
+
+.mcv-status-pending {
+  --status-bg: var(--mcv-pending-bg);
+  --status-edge: var(--mcv-pending-edge);
+  --status-icon: var(--mcv-warning-icon);
+}
+
+.mcv-status-resolved {
+  --status-bg: var(--mcv-success-bg);
+  --status-edge: var(--mcv-success-edge);
+  --status-icon: var(--mcv-success-icon);
+}
+
+.mcv-status-icon {
+  flex: none;
+  color: var(--status-icon);
+}
+
+.mcv-status-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mcv-progress {
+  flex: none;
+  width: 6rem;
+  height: 0.375rem;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--status-icon) 22%, transparent);
+  border-radius: 999px;
+}
+
+.mcv-progress-bar {
+  height: 100%;
+  background-color: var(--status-icon);
+  border-radius: 999px;
+  transition: width 200ms ease;
+}
+
+/* ---- Scroll container & grid ------------------------------------------ */
+
+.mcv-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--mcv-border);
+  border-radius: 0.5rem;
+  background-color: var(--mcv-bg);
+}
+
+.mcv-grid {
+  --p: 0;
+  display: grid;
+  min-width: 60rem;
+  /* current: code | actions | no   result: no | code   incoming: no | actions | code */
+  grid-template-columns:
+    minmax(0, 1fr) 3.5rem 3.5ch 3.5ch minmax(0, 1fr) 3.5ch 3.5rem
+    minmax(0, 1fr);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.mcv-row {
+  display: contents;
+}
+
+/* ---- Cells ------------------------------------------------------------- */
+
+.mcv-cell {
+  min-height: 1.55em;
+  padding: 0 0.5rem;
+}
+
+.mcv-col-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mcv-col-no {
+  padding: 0 0.375rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--mcv-muted);
+  user-select: none;
+}
+
+.mcv-col-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+}
+
+.mcv-pane-result.mcv-col-code {
   position: relative;
 }
 
-.mcv-gutter-buttons {
-  background-color: inherit;
+/* ---- Folded unchanged lines -------------------------------------------- */
+
+.mcv-fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.5rem;
+  font: inherit;
+  color: var(--mcv-muted);
+  background-color: var(--mcv-filler-bg);
+  border-top: 1px dashed var(--mcv-border);
+  border-bottom: 1px dashed var(--mcv-border);
+  cursor: pointer;
 }
 
-.dark {
-  --diff-background-color: hsl(var(--background));
-  --diff-text-color: hsl(var(--foreground));
-  --diff-selection-background-color: #3b5998;
-  --diff-gutter-insert-background-color: #1c3d25;
-  --diff-gutter-delete-background-color: #4a1f24;
-  --diff-code-insert-background-color: #0d3818;
-  --diff-code-delete-background-color: #3d1319;
-  --diff-code-insert-edit-background-color: #2d5a1e;
-  --diff-code-delete-edit-background-color: #6b2632;
-  --diff-gutter-selected-background-color: #4d4522;
-  --diff-code-selected-background-color: #4d4522;
+.mcv-fold:hover {
+  color: var(--mcv-fg);
+}
+
+button.mcv-fold:focus-visible {
+  outline: 2px solid var(--mcv-ring);
+  outline-offset: -2px;
+}
+
+/* ---- Placement (horizontal) ------------------------------------------- */
+
+.mcv-cell {
+  grid-row: calc(var(--r) + 2);
+}
+
+.mcv-pane-current.mcv-col-code {
+  grid-column: 1;
+}
+.mcv-pane-current.mcv-col-act {
+  grid-column: 2;
+}
+.mcv-pane-current.mcv-col-no {
+  grid-column: 3;
+}
+.mcv-pane-result.mcv-col-no {
+  grid-column: 4;
+}
+.mcv-pane-result.mcv-col-code {
+  grid-column: 5;
+}
+.mcv-pane-incoming.mcv-col-no {
+  grid-column: 6;
+}
+.mcv-pane-incoming.mcv-col-act {
+  grid-column: 7;
+}
+.mcv-pane-incoming.mcv-col-code {
+  grid-column: 8;
+}
+
+.mcv-pane-current.mcv-fold {
+  grid-column: 1 / 4;
+}
+.mcv-pane-result.mcv-fold {
+  grid-column: 4 / 6;
+}
+.mcv-pane-incoming.mcv-fold {
+  grid-column: 6 / 9;
+}
+
+.mcv-header {
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  font-weight: 500;
+  background-color: var(--mcv-bg);
+  border-bottom: 1px solid var(--mcv-border);
+}
+
+.mcv-header.mcv-pane-current {
+  grid-column: 1 / 4;
+}
+.mcv-header.mcv-pane-result {
+  grid-column: 4 / 6;
+}
+.mcv-header.mcv-pane-incoming {
+  grid-column: 6 / 9;
+}
+
+/* ---- Placement (stacked): current, incoming, then result --------------- */
+
+.mcv-stacked {
+  min-width: 0;
+  grid-template-columns: 3.5ch 3.5rem minmax(0, 1fr);
+}
+
+.mcv-stacked .mcv-pane-incoming {
+  --p: 1;
+}
+.mcv-stacked .mcv-pane-result {
+  --p: 2;
+}
+
+.mcv-stacked .mcv-cell {
+  grid-row: calc(var(--p) * (var(--n) + 1) + var(--r) + 2);
+}
+
+.mcv-stacked .mcv-header {
+  grid-row: calc(var(--p) * (var(--n) + 1) + 1);
+  grid-column: 1 / -1;
+  position: static;
+  border-top: 1px solid var(--mcv-border);
+}
+
+.mcv-stacked .mcv-header.mcv-pane-current {
+  border-top: 0;
+}
+
+.mcv-stacked .mcv-col-no {
+  grid-column: 1;
+}
+.mcv-stacked .mcv-col-act {
+  grid-column: 2;
+}
+.mcv-stacked .mcv-col-code {
+  grid-column: 3;
+}
+.mcv-stacked .mcv-pane-result.mcv-col-code {
+  grid-column: 2 / 4;
+}
+.mcv-stacked .mcv-fold {
+  grid-column: 1 / -1;
+}
+
+/* Empty cells would only add blank rows when panes are stacked. */
+.mcv-stacked .mcv-filler {
+  display: none;
+}
+
+/* ---- Change blocks ----------------------------------------------------- */
+
+.mcv-block {
+  --tint: var(--mcv-modified-bg);
+  --edge: var(--mcv-modified-edge);
+  --edit: var(--mcv-modified-edit);
+  background-color: var(--tint);
+}
+
+.mcv-block.mcv-tint-added {
+  --tint: var(--mcv-added-bg);
+  --edge: var(--mcv-added-edge);
+  --edit: var(--mcv-added-edit);
+}
+
+.mcv-block.mcv-first {
+  border-top: 1px solid var(--edge);
+}
+
+.mcv-block.mcv-last {
+  border-bottom: 1px solid var(--edge);
+}
+
+/* A side that was not accepted fades back; the accepted side stays vivid. */
+.mcv-block.mcv-rejected {
+  background-color: color-mix(in srgb, var(--tint) 30%, transparent);
+}
+
+.mcv-block.mcv-rejected.mcv-col-code {
+  color: var(--mcv-muted);
+}
+
+/* Nothing on this side: hatched space where the other side's text sits. */
+.mcv-block.mcv-filler {
+  background-color: var(--mcv-filler-bg);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    var(--mcv-filler-line) 5px 6px
+  );
+  --edge: var(--mcv-filler-line);
+}
+
+/* Result of a change nobody has decided on yet. */
+.mcv-block.mcv-pane-result.mcv-pending {
+  --tint: var(--mcv-pending-bg);
+  --edge: var(--mcv-pending-edge);
+  --edit: var(--mcv-pending-edit);
+}
+
+/* Result written by hand. */
+.mcv-block.mcv-pane-result.mcv-edited {
+  --tint: var(--mcv-edited-bg);
+  --edge: var(--mcv-edited-edge);
+  --edit: var(--mcv-edited-edit);
+}
+
+/* The change last navigated to or decided on. */
+.mcv-block.mcv-active.mcv-cell {
+  --edge: var(--mcv-accent);
+}
+
+.mcv-edit {
+  padding: 0;
+  border-radius: 2px;
+  color: inherit;
+  background-color: var(--edit);
+}
+
+.mcv-block.mcv-rejected .mcv-edit {
+  background-color: color-mix(in srgb, var(--edit) 50%, transparent);
+}
+
+/* ---- Actions ----------------------------------------------------------- */
+
+.mcv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  color: var(--mcv-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.mcv-btn:hover {
+  color: var(--mcv-fg);
+  background-color: color-mix(in srgb, var(--mcv-fg) 10%, transparent);
+}
+
+.mcv-btn:focus-visible {
+  outline: 2px solid var(--mcv-ring);
+  outline-offset: 1px;
+}
+
+.mcv-btn-accept[aria-pressed="true"] {
+  color: var(--mcv-accent);
+  background-color: color-mix(in srgb, var(--mcv-accent) 18%, transparent);
+}
+
+.mcv-btn-remove[aria-pressed="true"] {
+  color: var(--mcv-danger);
+  background-color: color-mix(in srgb, var(--mcv-danger) 18%, transparent);
+}
+
+.mcv-result-tools {
+  position: absolute;
+  top: 0;
+  right: 0.25rem;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+}
+
+.mcv-cell:hover > .mcv-result-tools,
+.mcv-result-tools:focus-within {
+  opacity: 1;
+}
+
+/* ---- Result editor ----------------------------------------------------- */
+
+.mcv-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  font-family: inherit;
+  white-space: normal;
+  background-color: var(--mcv-bg);
+  border: 1px solid var(--mcv-accent);
+  border-radius: 0.375rem;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+
+.mcv-editor-title {
+  font-size: 0.75rem;
+  color: var(--mcv-muted);
+}
+
+.mcv-editor-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  font: inherit;
+  line-height: 1.5;
+  tab-size: 2;
+  color: var(--mcv-fg);
+  white-space: pre;
+  resize: vertical;
+  background-color: var(--mcv-bg);
+  border: 1px solid var(--mcv-border);
+  border-radius: 0.25rem;
+}
+
+.mcv-editor-input:focus-visible {
+  outline: 2px solid var(--mcv-ring);
+  outline-offset: 0;
+}
+
+.mcv-editor-error {
+  font-size: 0.75rem;
+  color: var(--mcv-danger);
+}
+
+.mcv-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcv-btn,
+  .mcv-button,
+  .mcv-progress-bar,
+  .mcv-result-tools {
+    transition: none;
+  }
 }

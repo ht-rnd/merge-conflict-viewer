@@ -12,6 +12,7 @@
       "!**/dist",
       "!**/build",
       "!**/node_modules",
+      "!**/.smoke",
       "!**/coverage",
       "!**/support",
       "!**/public",

@@ -1,29 +1,167 @@
 import clsx from "clsx"
-import { type Diff as DeepDiff, diff } from "deep-diff"
-import { Check, X } from "lucide-react"
-import { type JSX, useEffect, useMemo, useState } from "react"
 import {
-  type ChangeData,
-  Diff,
-  type FileData,
-  Hunk,
-  type HunkData,
-  markEdits,
-  parseDiff,
-  type TokenizeOptions,
-  tokenize,
-} from "react-diff-view"
-import { diffLines, formatLines } from "unidiff"
-import { Button } from "@/components/ui/button"
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronUp,
+  CircleAlert,
+  CircleCheck,
+  Info,
+  Pencil,
+  Redo2,
+  Undo2,
+  X,
+} from "lucide-react"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { DiffSide, JsonObject, SideSelection } from "@/lib/types"
-import "react-diff-view/style/index.css"
-import "./MergeConflictViewer.css"
+  type CSSProperties,
+  forwardRef,
+  type JSX,
+  type ReactNode,
+  useEffect,
+  useImperativeHandle,
+  useInsertionEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
+import { type DisplayItem, foldRows } from "../lib/folding"
+import {
+  buildMergeLayout,
+  type MergeBlock,
+  type MergeRow,
+  type MergeStatus,
+  resolveConflict,
+  type Selection,
+} from "../lib/merge-model"
+import type { DiffSide, JsonObject, SideSelection } from "../lib/types"
+import {
+  type MergeConflictsState,
+  useMergeConflicts,
+} from "../lib/use-merge-conflicts"
+import { type MergeConflictViewerLabels, resolveLabels } from "./labels"
+import styles from "./MergeConflictViewer.css?inline"
+import { ResultEditor } from "./ResultEditor"
+
+/** Below this container width the "responsive" layout stacks the panes. */
+const STACK_BREAKPOINT_PX = 900
+
+/** Unchanged lines kept around each change when unchanged lines are folded. */
+const DEFAULT_FOLD_CONTEXT = 3
+
+const STYLE_ELEMENT_ID = "mcv-styles"
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect
+
+/**
+ * Adds the viewer stylesheet once, in front of the host's own styles so they
+ * can override it. Apps that render on the server (or use a strict CSP) can
+ * import `@ht-rnd/merge-conflict-viewer/styles` instead.
+ */
+function ensureStyles(): void {
+  if (typeof document === "undefined") {
+    return
+  }
+  if (document.getElementById(STYLE_ELEMENT_ID)) {
+    return
+  }
+  const element = document.createElement("style")
+  element.id = STYLE_ELEMENT_ID
+  element.textContent = styles
+  document.head.prepend(element)
+}
+
+type Pane = "current" | "result" | "incoming"
+
+type GridStyle = CSSProperties & Record<`--${string}`, string | number>
+
+/**
+ * Splits a line into [unchanged prefix, changed middle, unchanged suffix]
+ * against its counterpart, ignoring a trailing comma so punctuation that only
+ * depends on position is never highlighted.
+ */
+function splitInlineEdit(
+  text: string,
+  other: string | null,
+): [string, string, string] {
+  if (other === null) {
+    return [text, "", ""]
+  }
+
+  const comma = text.endsWith(",") ? "," : ""
+  const a = comma ? text.slice(0, -1) : text
+  const b = other.endsWith(",") ? other.slice(0, -1) : other
+
+  let start = 0
+  const max = Math.min(a.length, b.length)
+  while (start < max && a[start] === b[start]) {
+    start++
+  }
+
+  let endA = a.length
+  let endB = b.length
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1]) {
+    endA--
+    endB--
+  }
+
+  return [a.slice(0, start), a.slice(start, endA), a.slice(endA) + comma]
+}
+
+function CodeText({
+  text,
+  other,
+}: {
+  text: string
+  other?: string | null
+}): JSX.Element {
+  if (other === undefined) {
+    return <>{text}</>
+  }
+
+  const [before, changed, after] = splitInlineEdit(text, other)
+  if (!changed) {
+    return <>{text}</>
+  }
+
+  return (
+    <>
+      {before}
+      <mark className="mcv-edit">{changed}</mark>
+      {after}
+    </>
+  )
+}
+
+function ActionButton({
+  label,
+  pressed,
+  variant,
+  onClick,
+  children,
+}: {
+  label: string
+  pressed?: boolean
+  variant: "accept" | "remove"
+  onClick: () => void
+  children: ReactNode
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      className={clsx("mcv-btn", `mcv-btn-${variant}`)}
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  )
+}
+
+export type { MergeConflictViewerLabels }
 
 export interface MergeConflictViewerProps {
   /**
@@ -35,417 +173,692 @@ export interface MergeConflictViewerProps {
    */
   incomingJson: JsonObject
   /**
-   * Optional callback when the merged result changes
+   * Called on mount and whenever the result or its resolution status changes.
+   * `status.allResolved` is `true` once every change has been decided, which
+   * is the moment it is safe to merge.
    */
-  onMergeChange?: (mergedJson: JsonObject) => void
+  onMergeChange?: (mergedJson: JsonObject, status: MergeStatus) => void
   /**
-   * Optional initial merged JSON (defaults to incomingJson)
+   * An existing result. Each change starts on whichever side it matches; a
+   * value that matches neither side starts as an edited value. Changes are
+   * counted as decided when this is given (see `startUnresolved`).
    */
   initialMergedJson?: JsonObject
   /**
-   * Labels for the three columns
+   * When `true`, changes start undecided: the result shows the incoming side
+   * but is flagged until someone picks. Defaults to `true` unless
+   * `initialMergedJson` is given.
    */
-  labels?: {
-    current?: string
-    incoming?: string
-    result?: string
-  }
+  startUnresolved?: boolean
   /**
-   * Button labels
+   * Controlled decisions per change id (see `useMergeConflicts`). Pair with
+   * `onDecisionsChange` to persist a half-finished merge.
    */
-  buttonLabels?: {
-    applyAllCurrent?: string
-    applyAllIncoming?: string
-  }
+  decisions?: Selection
+  onDecisionsChange?: (decisions: Selection) => void
   /**
-   * Height of the diff viewer container
+   * Lets users edit the value of a change in the Result pane by hand.
+   * Defaults to `false`.
+   */
+  editable?: boolean
+  /**
+   * Every text the viewer shows (column titles, buttons, banner, tooltips,
+   * accessible names). Override what you need, for example to translate.
+   */
+  labels?: MergeConflictViewerLabels
+  /**
+   * Height of the whole viewer (toolbar included). Use `"100%"` to fill a
+   * parent with a bounded height. Without it the viewer grows with its
+   * content, and the column headers only stay sticky when the height is bounded.
    */
   height?: string | number
   /**
+   * Upper bound for the height; the panes scroll beyond it.
+   */
+  maxHeight?: string | number
+  /**
    * Layout of the three panes.
-   * - "horizontal": always side by side (Current | Incoming | Result)
-   * - "vertical": always stacked (diff on top, result below)
-   * - "responsive": horizontal on md+ screens, vertical on smaller (default)
+   * - "horizontal": always side by side (Current | Result | Incoming)
+   * - "vertical": always stacked (Current, Incoming, then Result)
+   * - "responsive": horizontal when there is room, stacked otherwise (default)
    */
   layout?: "horizontal" | "vertical" | "responsive"
+  /**
+   * Folds long runs of unchanged lines. `true` keeps 3 lines of context around
+   * each change, a number sets the amount. Users can toggle it from the
+   * toolbar. Defaults to `false`.
+   */
+  collapseUnchanged?: boolean | number
+  /** Hides the toolbar with the bulk actions and navigation. */
+  hideToolbar?: boolean
+  /** Hides the banner that tells whether everything is resolved. */
+  hideStatus?: boolean
+  /** Replaces the toolbar with your own, driven by the merge state. */
+  renderToolbar?: (state: MergeConflictsState) => ReactNode
+  className?: string
+  style?: CSSProperties
 }
 
-export function MergeConflictViewer({
-  currentJson,
-  incomingJson,
-  onMergeChange,
-  initialMergedJson,
-  labels = {},
-  buttonLabels = {},
-  height,
-  layout = "responsive",
-}: MergeConflictViewerProps) {
-  const [jsonL] = useState<JsonObject>(currentJson)
-  const [jsonR] = useState<JsonObject>(incomingJson)
+export interface MergeConflictViewerHandle {
+  /** The merged document as it currently stands. */
+  getResult: () => JsonObject
+  getStatus: () => MergeStatus
+  /** Resolve every change from one side. */
+  applyAll: (side: DiffSide) => void
+  /** Back to how the viewer started. Can be undone. */
+  reset: () => void
+  undo: () => void
+  redo: () => void
+  /** Scrolls to the next undecided change. Returns `false` if there is none. */
+  goToNextUnresolved: () => boolean
+  goToChange: (direction: "next" | "previous") => void
+}
 
-  const [mergedJson, setMergedJson] = useState<JsonObject>(
-    initialMergedJson ?? incomingJson,
+export const MergeConflictViewer = forwardRef<
+  MergeConflictViewerHandle,
+  MergeConflictViewerProps
+>(function MergeConflictViewer(
+  {
+    currentJson,
+    incomingJson,
+    onMergeChange,
+    initialMergedJson,
+    startUnresolved,
+    decisions,
+    onDecisionsChange,
+    editable = false,
+    labels,
+    height,
+    maxHeight,
+    layout = "responsive",
+    collapseUnchanged = false,
+    hideToolbar = false,
+    hideStatus = false,
+    renderToolbar,
+    className,
+    style,
+  },
+  ref,
+) {
+  useInsertionEffect(ensureStyles, [])
+  const t = resolveLabels(labels)
+
+  const state = useMergeConflicts({
+    currentJson,
+    incomingJson,
+    initialMergedJson,
+    startUnresolved,
+    decisions,
+    onDecisionsChange,
+  })
+  const { tree, selection, merged, status, isResolved } = state
+
+  const mergeLayout = useMemo(
+    () => buildMergeLayout(tree, selection),
+    [tree, selection],
   )
 
-  const [conflictingKeys, setConflictingKeys] = useState<string[]>([])
+  const blockById = useMemo(() => {
+    const map = new Map<string, MergeBlock>()
+    for (const block of mergeLayout.blocks) {
+      map.set(block.id, block)
+    }
+    return map
+  }, [mergeLayout])
 
-  const [selectedKeys, setSelectedKeys] = useState<
-    Record<string, SideSelection>
-  >({})
+  const onMergeChangeRef = useRef(onMergeChange)
+  onMergeChangeRef.current = onMergeChange
 
-  const jsonLString = useMemo(() => JSON.stringify(jsonL, null, 2), [jsonL])
-  const jsonRString = useMemo(() => JSON.stringify(jsonR, null, 2), [jsonR])
+  useEffect(() => {
+    onMergeChangeRef.current?.(merged, status)
+  }, [merged, status])
 
-  const diffText = useMemo(() => {
-    return formatLines(diffLines(jsonLString, jsonRString), {
-      context: 3,
-      aname: "left.json",
-      bname: "right.json",
+  // ---- Layout mode --------------------------------------------------------
+
+  const rootRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [narrow, setNarrow] = useState(false)
+
+  useIsomorphicLayoutEffect(() => {
+    const element = scrollRef.current
+    if (
+      layout !== "responsive" ||
+      !element ||
+      typeof ResizeObserver === "undefined"
+    ) {
+      return
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      setNarrow(entry.contentRect.width < STACK_BREAKPOINT_PX)
     })
-  }, [jsonLString, jsonRString])
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [layout])
 
-  const files = useMemo(() => {
-    return parseDiff(diffText, { nearbySequences: "zip" })
-  }, [diffText])
+  const stacked = layout === "vertical" || (layout === "responsive" && narrow)
 
-  const differences = useMemo(() => diff(jsonL, jsonR), [jsonL, jsonR])
+  // ---- Folding unchanged lines -------------------------------------------
 
-  useEffect(() => {
-    if (differences) {
-      const conflicts = differences
-        .map((d: DeepDiff<JsonObject, JsonObject>) => d.path?.join("."))
-        .filter(
-          (path: string | undefined): path is string => path !== undefined,
-        )
+  const foldContext =
+    typeof collapseUnchanged === "number"
+      ? collapseUnchanged
+      : DEFAULT_FOLD_CONTEXT
+  const [collapsed, setCollapsed] = useState(collapseUnchanged !== false)
+  const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
 
-      setConflictingKeys(conflicts)
-    } else {
-      setConflictingKeys([])
+  const items = useMemo<DisplayItem[]>(
+    () =>
+      collapsed
+        ? foldRows(mergeLayout.rows, foldContext, expandedFolds)
+        : mergeLayout.rows.map((row) => ({ type: "row", row })),
+    [collapsed, mergeLayout, foldContext, expandedFolds],
+  )
+
+  const expandFold = (key: string): void => {
+    setExpandedFolds((prev) => new Set(prev).add(key))
+  }
+
+  // ---- Navigation ---------------------------------------------------------
+
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const order = useMemo(() => tree.conflicts.map((c) => c.id), [tree])
+
+  const scrollToBlock = (id: string): void => {
+    const nodes = Array.from(
+      rootRef.current?.querySelectorAll<HTMLElement>("[data-mcv-block]") ?? [],
+    ).filter((node) => node.dataset.mcvBlock === id)
+    // Filler cells are hidden when the panes are stacked.
+    const target =
+      nodes.find((node) => getComputedStyle(node).display !== "none") ??
+      nodes[0]
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false
+    target?.scrollIntoView?.({
+      block: "center",
+      behavior: reduceMotion ? "auto" : "smooth",
+    })
+  }
+
+  const jumpTo = (id: string): void => {
+    setActiveId(id)
+    scrollToBlock(id)
+  }
+
+  const pick = (
+    candidates: string[],
+    direction: "next" | "previous",
+  ): string | null => {
+    if (candidates.length === 0) {
+      return null
     }
-  }, [differences])
-
-  useEffect(() => {
-    if (conflictingKeys.length > 0) {
-      const initialSelected = conflictingKeys.reduce<
-        Record<string, SideSelection>
-      >((acc: Record<string, SideSelection>, key: string) => {
-        acc[key] = "right"
-        return acc
-      }, {})
-      setSelectedKeys(initialSelected)
+    const position = activeId === null ? -1 : order.indexOf(activeId)
+    if (direction === "next") {
+      return (
+        candidates.find((id) => order.indexOf(id) > position) ?? candidates[0]
+      )
     }
-  }, [conflictingKeys])
-
-  useEffect(() => {
-    onMergeChange?.(mergedJson)
-  }, [mergedJson, onMergeChange])
-
-  const getValueByPath = (obj: JsonObject, path: string): unknown => {
-    const pathArray = path.split(".")
-    return pathArray.reduce<unknown>(
-      (acc, key) =>
-        acc && typeof acc === "object" ? (acc as JsonObject)[key] : undefined,
-      obj,
+    const before = position === -1 ? order.length : position
+    return (
+      [...candidates].reverse().find((id) => order.indexOf(id) < before) ??
+      candidates[candidates.length - 1]
     )
   }
 
-  const setValueByPath = (
-    obj: JsonObject,
-    path: string,
-    value: unknown,
-  ): void => {
-    const keys = path.split(".")
-    const lastKey = keys.pop()
-    let current: JsonObject = obj
+  const goToNextUnresolved = (): boolean => {
+    const id = pick(
+      order.filter((candidate) => !isResolved(candidate)),
+      "next",
+    )
+    if (id === null) {
+      return false
+    }
+    jumpTo(id)
+    return true
+  }
 
-    for (const key of keys) {
-      if (!current[key] || typeof current[key] !== "object") {
-        current[key] = Number.isNaN(Number(key)) ? {} : []
+  const goToChange = (direction: "next" | "previous"): void => {
+    const id = pick(order, direction)
+    if (id !== null) {
+      jumpTo(id)
+    }
+  }
+
+  const handleRef = useRef({ state, goToNextUnresolved, goToChange })
+  handleRef.current = { state, goToNextUnresolved, goToChange }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getResult: () => handleRef.current.state.merged,
+      getStatus: () => handleRef.current.state.status,
+      applyAll: (side) => handleRef.current.state.applyAll(side),
+      reset: () => handleRef.current.state.reset(),
+      undo: () => handleRef.current.state.undo(),
+      redo: () => handleRef.current.state.redo(),
+      goToNextUnresolved: () => handleRef.current.goToNextUnresolved(),
+      goToChange: (direction) => handleRef.current.goToChange(direction),
+    }),
+    [],
+  )
+
+  // Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y while focus is inside the viewer.
+  // Text fields keep their own undo.
+  useEffect(() => {
+    const element = rootRef.current
+    if (!element) {
+      return
+    }
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        target.closest("textarea, input")
+      ) {
+        return
       }
-      current = current[key] as JsonObject
-    }
-
-    if (lastKey !== undefined) {
-      current[lastKey] = value
-    }
-  }
-
-  const deleteValueByPath = (obj: JsonObject, path: string): void => {
-    const keys = path.split(".")
-    const lastKey = keys.pop()
-    if (!lastKey) return
-
-    let current: JsonObject = obj
-    for (const key of keys) {
-      if (!current[key] || typeof current[key] !== "object") return
-      current = current[key] as JsonObject
-    }
-
-    if (Array.isArray(current)) {
-      const index = Number(lastKey)
-      if (!Number.isNaN(index)) {
-        ;(current as unknown[]).splice(index, 1)
-      }
-    } else {
-      delete current[lastKey]
-    }
-  }
-
-  const handleSelectSide = (key: string, side: DiffSide): void => {
-    const value =
-      side === "left" ? getValueByPath(jsonL, key) : getValueByPath(jsonR, key)
-
-    setMergedJson((prev: JsonObject) => {
-      const updated = JSON.parse(JSON.stringify(prev)) as JsonObject
-      setValueByPath(updated, key, value)
-      return updated
-    })
-
-    setSelectedKeys((prev: Record<string, SideSelection>) => ({
-      ...prev,
-      [key]: side,
-    }))
-  }
-
-  const handleDeleteKey = (key: string): void => {
-    setMergedJson((prev: JsonObject) => {
-      const updated = JSON.parse(JSON.stringify(prev)) as JsonObject
-      deleteValueByPath(updated, key)
-      return updated
-    })
-
-    setSelectedKeys((prev: Record<string, SideSelection>) => ({
-      ...prev,
-      [key]: "deleted",
-    }))
-  }
-
-  const applyAllFrom = (side: DiffSide): void => {
-    setMergedJson(side === "left" ? jsonL : jsonR)
-
-    if (conflictingKeys.length > 0) {
-      const updatedSelectedSides = conflictingKeys.reduce<
-        Record<string, SideSelection>
-      >((acc: Record<string, SideSelection>, key: string) => {
-        acc[key] = side
-        return acc
-      }, {})
-      setSelectedKeys(updatedSelectedSides)
-    } else {
-      setSelectedKeys({})
-    }
-  }
-
-  const renderGutter = ({
-    change,
-    side,
-  }: {
-    change: ChangeData
-    side: "old" | "new"
-  }): JSX.Element => {
-    const json: DiffSide = side === "new" ? "right" : "left"
-    const lineNumber =
-      change.type === "normal"
-        ? side === "old"
-          ? change.oldLineNumber
-          : change.newLineNumber
-        : change.lineNumber
-    const isChangeType = change.type !== "normal"
-    let matchingPath: string | undefined
-
-    if (isChangeType) {
-      const content = change.content
-      const trimmedContent = content.trim()
-      const indentation = content.length - content.trimStart().length
-
-      const matchingDiff = differences?.find(
-        (d: DeepDiff<JsonObject, JsonObject>) => {
-          if (!d.path || d.path.length === 0) return false
-          if (d.kind === "A") return true
-
-          const key = d.path[d.path.length - 1]
-          const value =
-            change.type === "insert" && "rhs" in d
-              ? d.rhs
-              : change.type === "delete" && "lhs" in d
-                ? d.lhs
-                : undefined
-
-          let match = false
-
-          if (typeof value !== "object" || value === null) {
-            const expectedText = `"${key}": ${JSON.stringify(value)}`
-            match =
-              trimmedContent === expectedText ||
-              trimmedContent === `${expectedText},`
-          } else {
-            match =
-              trimmedContent === `"${key}": {` ||
-              trimmedContent === `"${key}": [`
-          }
-
-          if (!match) return false
-          return indentation === d.path.length * 2
-        },
-      )
-
-      if (matchingDiff?.path) {
-        const lastElement = matchingDiff.path[matchingDiff.path.length - 1]
-        const extractedKey = trimmedContent.split('"')[1]
-        if (lastElement !== extractedKey) {
-          matchingPath = undefined
-        } else {
-          matchingPath = matchingDiff.path?.join(".")
-        }
+      const key = event.key.toLowerCase()
+      if (key === "z" && !event.shiftKey) {
+        event.preventDefault()
+        handleRef.current.state.undo()
+      } else if ((key === "z" && event.shiftKey) || key === "y") {
+        event.preventDefault()
+        handleRef.current.state.redo()
       }
     }
+
+    element.addEventListener("keydown", onKeyDown)
+    return () => element.removeEventListener("keydown", onKeyDown)
+  }, [])
+
+  // ---- Actions ------------------------------------------------------------
+
+  const choose = (id: string, side: SideSelection): void => {
+    state.choose(id, side)
+    setActiveId(id)
+  }
+
+  const editorText = (block: MergeBlock): string => {
+    const resolved = resolveConflict(block.entry, selection[block.id])
+    const value = resolved.present
+      ? resolved.value
+      : block.entry.hasRight
+        ? block.entry.right
+        : block.entry.left
+    return JSON.stringify(value, null, 2) ?? "null"
+  }
+
+  // ---- Rendering ----------------------------------------------------------
+
+  const renderRow = (row: MergeRow, displayIndex: number): JSX.Element => {
+    const block = row.blockId ? blockById.get(row.blockId) : undefined
+    const isFirst = row.blockRow === 0
+    const isLast = row.blockRow === row.blockSize - 1
+    const resolved = block ? isResolved(block.id) : true
+    const entry = block?.entry
+
+    const cellClass = (
+      pane: Pane,
+      column: "no" | "act" | "code",
+      text: string | null,
+    ): string => {
+      const accepted =
+        pane === "current"
+          ? block?.selection === "left"
+          : pane === "incoming"
+            ? block?.selection === "right"
+            : true
+
+      return clsx("mcv-cell", `mcv-pane-${pane}`, `mcv-col-${column}`, {
+        "mcv-block": block,
+        "mcv-tint-modified": block?.kind === "modified",
+        "mcv-tint-added": block && block.kind !== "modified",
+        "mcv-first": block && isFirst,
+        "mcv-last": block && isLast,
+        "mcv-filler": block && text === null,
+        "mcv-rejected": block && text !== null && resolved && !accepted,
+        "mcv-pending": block && pane === "result" && !resolved,
+        "mcv-edited":
+          block && pane === "result" && block.selection === "custom",
+        "mcv-active": block && activeId === block.id,
+      })
+    }
+
+    const blockAttribute = (): { "data-mcv-block"?: string } =>
+      block && isFirst ? { "data-mcv-block": block.id } : {}
+
+    const inlineOther = (own: string | null, other: string | null) =>
+      block?.kind === "modified" && own !== null && other !== null
+        ? other
+        : undefined
+
+    const leftActions =
+      block && entry && isFirst && entry.hasLeft ? (
+        <>
+          <ActionButton
+            label={t.removeChange(entry.label)}
+            variant="remove"
+            pressed={resolved && block.selection === "deleted"}
+            onClick={() => choose(block.id, "deleted")}
+          >
+            <X size={14} />
+          </ActionButton>
+          <ActionButton
+            label={t.acceptCurrent(entry.label)}
+            variant="accept"
+            pressed={resolved && block.selection === "left"}
+            onClick={() => choose(block.id, "left")}
+          >
+            <ChevronsRight size={14} />
+          </ActionButton>
+        </>
+      ) : null
+
+    const rightActions =
+      block && entry && isFirst && entry.hasRight ? (
+        <>
+          <ActionButton
+            label={t.acceptIncoming(entry.label)}
+            variant="accept"
+            pressed={resolved && block.selection === "right"}
+            onClick={() => choose(block.id, "right")}
+          >
+            <ChevronsLeft size={14} />
+          </ActionButton>
+          <ActionButton
+            label={t.removeChange(entry.label)}
+            variant="remove"
+            pressed={resolved && block.selection === "deleted"}
+            onClick={() => choose(block.id, "deleted")}
+          >
+            <X size={14} />
+          </ActionButton>
+        </>
+      ) : null
+
+    const resultTools =
+      editable && block && entry && isFirst ? (
+        <div className="mcv-result-tools">
+          {block.selection === "custom" && (
+            <ActionButton
+              label={t.revertEdit(entry.label)}
+              variant="accept"
+              onClick={() => state.revert(block.id)}
+            >
+              <Undo2 size={14} />
+            </ActionButton>
+          )}
+          <ActionButton
+            label={t.editChange(entry.label)}
+            variant="accept"
+            onClick={() => {
+              setActiveId(block.id)
+              setEditingId(block.id)
+            }}
+          >
+            <Pencil size={14} />
+          </ActionButton>
+        </div>
+      ) : null
+
+    const editor =
+      editable && block && entry && isFirst && editingId === block.id ? (
+        <ResultEditor
+          title={t.editorTitle(entry.label)}
+          inputLabel={t.editorInput(entry.label)}
+          applyLabel={t.apply}
+          cancelLabel={t.cancel}
+          initialText={editorText(block)}
+          onCancel={() => setEditingId(null)}
+          onCommit={(value) => {
+            state.choose(block.id, { custom: value })
+            setEditingId(null)
+          }}
+        />
+      ) : null
 
     return (
-      <div className="relative flex justify-end items-center my-px bg-inherit">
-        {isChangeType && matchingPath && (
-          <div className="mcv-gutter-buttons absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-10">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className={clsx(
-                    "cursor-pointer transition-colors hover:text-red-500",
-                    {
-                      "text-red-600 dark:text-red-400":
-                        selectedKeys[matchingPath] === "deleted",
-                    },
-                  )}
-                  onClick={() => {
-                    if (matchingPath) handleDeleteKey(matchingPath)
-                  }}
-                >
-                  <X size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Delete key from result</TooltipContent>
-            </Tooltip>
+      <div
+        key={row.index}
+        className="mcv-row"
+        style={{ "--r": displayIndex } as GridStyle}
+      >
+        <div
+          className={cellClass("current", "code", row.left)}
+          {...blockAttribute()}
+        >
+          {row.left !== null && (
+            <CodeText
+              text={row.left}
+              other={inlineOther(row.left, row.right)}
+            />
+          )}
+        </div>
+        <div className={cellClass("current", "act", row.left)}>
+          {leftActions}
+        </div>
+        <div className={cellClass("current", "no", row.left)} aria-hidden>
+          {row.leftNo}
+        </div>
 
-            {side === "new" ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className={clsx(
-                      "cursor-pointer transition-colors hover:text-blue-500",
-                      {
-                        "dark:text-blue-400 text-blue-600":
-                          selectedKeys[matchingPath] === "right",
-                      },
-                    )}
-                    onClick={() => {
-                      if (matchingPath) handleSelectSide(matchingPath, json)
-                    }}
-                  >
-                    <Check size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Accept incoming value</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className={clsx(
-                      "cursor-pointer transition-colors hover:text-green-500",
-                      {
-                        "dark:text-green-400 text-green-600":
-                          selectedKeys[matchingPath] === "left",
-                      },
-                    )}
-                    onClick={() => {
-                      if (matchingPath) handleSelectSide(matchingPath, json)
-                    }}
-                  >
-                    <Check size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Accept current value</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        )}
-        <span>{lineNumber}</span>
+        <div className={cellClass("result", "no", row.result)} aria-hidden>
+          {row.resultNo}
+        </div>
+        <div
+          className={cellClass("result", "code", row.result)}
+          {...blockAttribute()}
+        >
+          {row.result}
+          {resultTools}
+          {editor}
+        </div>
+
+        <div className={cellClass("incoming", "no", row.right)} aria-hidden>
+          {row.rightNo}
+        </div>
+        <div className={cellClass("incoming", "act", row.right)}>
+          {rightActions}
+        </div>
+        <div
+          className={cellClass("incoming", "code", row.right)}
+          {...blockAttribute()}
+        >
+          {row.right !== null && (
+            <CodeText
+              text={row.right}
+              other={inlineOther(row.right, row.left)}
+            />
+          )}
+        </div>
       </div>
     )
   }
 
-  const renderFile = ({ type, hunks }: FileData): JSX.Element => {
-    const options = {
-      highlight: false,
-      enhancers: [markEdits(hunks, { type: "block" })],
-    }
-    const tokens = tokenize(hunks, options as TokenizeOptions)
+  const renderFold = (
+    item: Extract<DisplayItem, { type: "fold" }>,
+    displayIndex: number,
+  ): JSX.Element => {
+    const text = t.unchangedLines(item.hidden)
+    const panes: Pane[] = ["current", "result", "incoming"]
 
     return (
-      <Diff
-        viewType="split"
-        diffType={type}
-        hunks={hunks}
-        tokens={tokens}
-        renderGutter={renderGutter}
+      <div
+        key={`fold-${item.key}`}
+        className="mcv-row"
+        style={{ "--r": displayIndex } as GridStyle}
       >
-        {(hunks: HunkData[]) =>
-          hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)
-        }
-      </Diff>
+        {panes.map((pane) => (
+          <button
+            key={pane}
+            type="button"
+            className={clsx("mcv-cell", "mcv-fold", `mcv-pane-${pane}`)}
+            tabIndex={pane === "current" ? 0 : -1}
+            aria-hidden={pane === "current" ? undefined : true}
+            aria-label={t.showUnchanged(item.hidden)}
+            onClick={() => expandFold(item.key)}
+          >
+            ⋯ {text}
+          </button>
+        ))}
+      </div>
     )
   }
+
+  let displayIndex = 0
+  const renderedItems = items.map((item) => {
+    const index = displayIndex++
+    return item.type === "row"
+      ? renderRow(item.row, index)
+      : renderFold(item, index)
+  })
+
+  const total = status.total
+
+  const statusState =
+    total === 0 ? "empty" : status.allResolved ? "resolved" : "pending"
+
+  const statusText =
+    total === 0
+      ? t.noChanges
+      : status.allResolved
+        ? t.allResolved(status)
+        : t.unresolved(status)
+
+  const toolbar = renderToolbar ? (
+    renderToolbar(state)
+  ) : hideToolbar ? null : (
+    <div className="mcv-toolbar">
+      <button
+        type="button"
+        className="mcv-button"
+        onClick={() => state.applyAll("left")}
+      >
+        {t.applyAllCurrent}
+      </button>
+      <button
+        type="button"
+        className="mcv-button"
+        onClick={() => state.applyAll("right")}
+      >
+        {t.applyAllIncoming}
+      </button>
+
+      <div className="mcv-toolbar-group">
+        <button
+          type="button"
+          className="mcv-button mcv-button-icon"
+          aria-label={t.previousChange}
+          title={t.previousChange}
+          disabled={total === 0}
+          onClick={() => goToChange("previous")}
+        >
+          <ChevronUp size={16} />
+        </button>
+        <button
+          type="button"
+          className="mcv-button mcv-button-icon"
+          aria-label={t.nextChange}
+          title={t.nextChange}
+          disabled={total === 0}
+          onClick={() => goToChange("next")}
+        >
+          <ChevronDown size={16} />
+        </button>
+      </div>
+
+      <div className="mcv-toolbar-group">
+        <button
+          type="button"
+          className="mcv-button mcv-button-icon"
+          aria-label={t.undo}
+          title={`${t.undo} (Ctrl+Z)`}
+          disabled={!state.canUndo}
+          onClick={state.undo}
+        >
+          <Undo2 size={16} />
+        </button>
+        <button
+          type="button"
+          className="mcv-button mcv-button-icon"
+          aria-label={t.redo}
+          title={`${t.redo} (Ctrl+Shift+Z)`}
+          disabled={!state.canRedo}
+          onClick={state.redo}
+        >
+          <Redo2 size={16} />
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className="mcv-button"
+        aria-pressed={collapsed}
+        onClick={() => setCollapsed((value) => !value)}
+      >
+        {t.hideUnchanged}
+      </button>
+
+      <span className="mcv-summary">{t.summary(status)}</span>
+    </div>
+  )
+
+  const statusBar = hideStatus ? null : (
+    <div className={clsx("mcv-status", `mcv-status-${statusState}`)}>
+      {statusState === "resolved" ? (
+        <CircleCheck className="mcv-status-icon" size={18} aria-hidden />
+      ) : statusState === "pending" ? (
+        <CircleAlert className="mcv-status-icon" size={18} aria-hidden />
+      ) : (
+        <Info className="mcv-status-icon" size={18} aria-hidden />
+      )}
+      <output className="mcv-status-text">{statusText}</output>
+      {total > 0 && (
+        <div className="mcv-progress" aria-hidden>
+          <div
+            className="mcv-progress-bar"
+            style={{ width: `${(status.resolved / total) * 100}%` }}
+          />
+        </div>
+      )}
+      {statusState === "pending" && (
+        <button
+          type="button"
+          className="mcv-button mcv-button-small"
+          onClick={goToNextUnresolved}
+        >
+          {t.nextUnresolved}
+        </button>
+      )}
+    </div>
+  )
 
   return (
-    <TooltipProvider>
-      <div>
-        <div className="flex flex-col md:flex-row gap-2 pb-2">
-          <Button variant="outline" onClick={() => applyAllFrom("left")}>
-            {buttonLabels.applyAllCurrent ?? "Apply all from current"}
-          </Button>
+    <div
+      ref={rootRef}
+      className={clsx("mcv-root", className)}
+      style={{ height, maxHeight, ...style }}
+      data-mcv-status={statusState}
+    >
+      {toolbar}
+      {statusBar}
 
-          <Button variant="outline" onClick={() => applyAllFrom("right")}>
-            {buttonLabels.applyAllIncoming ?? "Apply all from incoming"}
-          </Button>
-        </div>
-
+      <div ref={scrollRef} className="mcv-scroll">
         <div
-          className="overflow-auto border border-input rounded-lg"
-          style={{
-            height: typeof height === "number" ? `${height}px` : height,
-          }}
+          className={clsx("mcv-grid", { "mcv-stacked": stacked })}
+          style={{ "--n": displayIndex } as GridStyle}
         >
-          <div
-            className={
-              layout === "horizontal"
-                ? "grid grid-cols-3 min-h-full"
-                : layout === "vertical"
-                  ? "grid grid-cols-1 min-h-full"
-                  : "grid grid-cols-1 min-h-full md:grid-cols-3"
-            }
-          >
-            <div className="border-b last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
-              <p className="p-2 border-b">{labels.current ?? "Current"}</p>
-              <div className="mcv-old-only overflow-hidden">
-                {files.map(renderFile)}
-              </div>
-            </div>
-            <div className="border-b last:border-b-0 md:border-b-0 md:border-r md:last:border-r-0">
-              <p className="p-2 border-b">{labels.incoming ?? "Incoming"}</p>
-              <div className="mcv-new-only overflow-hidden">
-                {files.map(renderFile)}
-              </div>
-            </div>
-            <div>
-              <p className="p-2 border-b">{labels.result ?? "Result"}</p>
-              <pre className="whitespace-pre-wrap break-words p-2">
-                {JSON.stringify(mergedJson, null, 2)}
-              </pre>
-            </div>
-          </div>
+          <div className="mcv-header mcv-pane-current">{t.current}</div>
+          <div className="mcv-header mcv-pane-result">{t.result}</div>
+          <div className="mcv-header mcv-pane-incoming">{t.incoming}</div>
+
+          {renderedItems}
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   )
-}
+})
