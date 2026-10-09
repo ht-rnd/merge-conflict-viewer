@@ -181,8 +181,15 @@ export interface MergeViewer extends MergeConflictsState {
   statusText: string
 
   // Folding
-  /** Whether long runs of unchanged lines are folded. */
+  /**
+   * Whether long runs of unchanged lines are folded. `false` as soon as one
+   * of them was opened by hand, so a "hide" button reads as not pressed.
+   */
   collapsed: boolean
+  /**
+   * Hides every unchanged run when some are showing (including ones opened by
+   * hand), otherwise switches folding off again.
+   */
   toggleCollapsed: () => void
 
   // Navigation
@@ -310,18 +317,38 @@ export function useMergeViewer({
     typeof collapseUnchanged === "number"
       ? collapseUnchanged
       : DEFAULT_FOLD_CONTEXT
-  const [collapsed, setCollapsed] = useState(collapseUnchanged !== false)
+  const [foldingOn, setFoldingOn] = useState(collapseUnchanged !== false)
   const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(
     () => new Set(),
   )
 
   const displayItems = useMemo<DisplayItem[]>(
     () =>
-      collapsed
+      foldingOn
         ? foldRows(mergeLayout.rows, foldContext, expandedFolds)
         : mergeLayout.rows.map((row) => ({ type: "row", row })),
-    [collapsed, mergeLayout, foldContext, expandedFolds],
+    [foldingOn, mergeLayout, foldContext, expandedFolds],
   )
+
+  // Folding is only "on" for the user while nothing was opened by hand:
+  // compare the folds showing with the folds there would be with none opened.
+  const foldCount = (items: readonly DisplayItem[]): number =>
+    items.filter((item) => item.type === "fold").length
+  const collapsed = useMemo(
+    () =>
+      foldingOn &&
+      foldCount(displayItems) ===
+        foldCount(foldRows(mergeLayout.rows, foldContext, new Set())),
+    [foldingOn, displayItems, mergeLayout, foldContext],
+  )
+
+  const toggleCollapsed = (): void => {
+    setExpandedFolds(new Set())
+    // Switch folding off only when everything is folded. If a run was opened
+    // by hand, fold them all again: switching off would change nothing visible
+    // and the button would look broken.
+    setFoldingOn(!collapsed)
+  }
 
   const expandFold = (key: string): void => {
     setExpandedFolds((prev) => new Set(prev).add(key))
@@ -614,7 +641,7 @@ export function useMergeViewer({
     statusText,
 
     collapsed,
-    toggleCollapsed: () => setCollapsed((value) => !value),
+    toggleCollapsed,
 
     activeId,
     goToChange,

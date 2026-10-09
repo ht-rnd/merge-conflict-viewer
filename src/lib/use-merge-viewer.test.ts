@@ -208,6 +208,56 @@ describe("useMergeViewer folding", () => {
     expect(result.current.items.every((item) => item.type === "row")).toBe(true)
   })
 
+  describe("after a fold was opened by hand", () => {
+    const foldsOf = (items: ReturnType<typeof setup>["result"]) =>
+      items.current.items.filter((item) => item.type === "fold")
+    const openFirstFold = (items: ReturnType<typeof setup>["result"]) => {
+      const [first] = foldsOf(items)
+      if (first?.type !== "fold") {
+        throw new Error("expected a fold")
+      }
+      act(() => first.expand())
+    }
+
+    it("stops reporting the lines as hidden", () => {
+      const { result } = setup({ ...options, collapseUnchanged: 1 })
+      expect(result.current.collapsed).toBe(true)
+      openFirstFold(result)
+      expect(result.current.collapsed).toBe(false)
+    })
+
+    it("folds everything again with one press, even with a single fold", () => {
+      const { result } = setup({
+        currentJson: wide,
+        incomingJson: { ...wide, key2: "changed" },
+        collapseUnchanged: 1,
+      })
+      expect(foldsOf(result)).toHaveLength(1)
+      openFirstFold(result)
+      expect(foldsOf(result)).toHaveLength(0)
+
+      act(() => result.current.toggleCollapsed())
+      expect(foldsOf(result)).toHaveLength(1)
+      expect(result.current.collapsed).toBe(true)
+    })
+
+    it("keeps working as an on/off switch afterwards", () => {
+      const { result } = setup({ ...options, collapseUnchanged: 1 })
+      openFirstFold(result)
+
+      act(() => result.current.toggleCollapsed())
+      expect(foldsOf(result)).toHaveLength(2)
+
+      act(() => result.current.toggleCollapsed())
+      expect(foldsOf(result)).toHaveLength(0)
+      expect(result.current.collapsed).toBe(false)
+
+      act(() => result.current.toggleCollapsed())
+      expect(foldsOf(result)).toHaveLength(2)
+      expect(result.current.collapsed).toBe(true)
+    })
+  })
+
   it("makes every fold reachable through one pane only", () => {
     const { result } = setup({ ...options, collapseUnchanged: 1 })
     const fold = result.current.items.find((item) => item.type === "fold")

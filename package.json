@@ -1,7 +1,7 @@
 {
   "name": "@ht-rnd/merge-conflict-viewer",
   "private": false,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "Headless merge conflict viewer for JSON (React hooks and merge model), with a shadcn/ui registry component",
   "author": "ht-rnd",

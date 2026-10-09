@@ -303,6 +303,35 @@ describe("MergeConflictViewer", () => {
     )
   })
 
+  it("folds again from the button after a fold was opened by hand", () => {
+    const wide = Object.fromEntries(
+      Array.from({ length: 40 }, (_, i) => [`key${i}`, i]),
+    )
+    render(
+      <MergeConflictViewer
+        currentJson={wide}
+        incomingJson={{ ...wide, key2: "changed" }}
+        collapseUnchanged={1}
+      />,
+    )
+    const foldLabel = /^Show \d+ unchanged lines$/
+    const button = screen.getByRole("button", { name: "Hide unchanged lines" })
+    expect(button.getAttribute("aria-pressed")).toBe("true")
+
+    // The only fold, opened by clicking the "N unchanged lines" text.
+    fireEvent.click(screen.getAllByLabelText(foldLabel)[0])
+    expect(screen.queryAllByLabelText(foldLabel)).toHaveLength(0)
+    expect(button.getAttribute("aria-pressed")).toBe("false")
+
+    // One press hides it again, the next shows everything.
+    fireEvent.click(button)
+    expect(screen.getAllByLabelText(foldLabel).length).toBeGreaterThan(0)
+    expect(button.getAttribute("aria-pressed")).toBe("true")
+    fireEvent.click(button)
+    expect(screen.queryAllByLabelText(foldLabel)).toHaveLength(0)
+    expect(button.getAttribute("aria-pressed")).toBe("false")
+  })
+
   it("keeps panes aligned by placing every cell on the grid", () => {
     const { container } = render(
       <MergeConflictViewer currentJson={current} incomingJson={incoming} />,
