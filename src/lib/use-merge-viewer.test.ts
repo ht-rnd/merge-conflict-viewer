@@ -541,3 +541,102 @@ describe("inline diff", () => {
     expect(segments.every((s) => s.text.length > 0)).toBe(true)
   })
 })
+
+describe("line wrapping", () => {
+  const codeProps = (viewer: MergeViewer) =>
+    viewer.getCellProps(rowsOf(viewer)[0], "result", "code")
+
+  it("wraps by default", () => {
+    const { result } = setup()
+    expect(result.current.wrapLines).toBe(true)
+
+    const props = codeProps(result.current)
+    expect(props["data-wrap"]).toBe("wrap")
+    expect(props.style).toMatchObject({
+      whiteSpace: "pre-wrap",
+      overflowWrap: "anywhere",
+      minWidth: 0,
+    })
+    expect(props.style.overflowX).toBeUndefined()
+  })
+
+  it("only describes the wrapping of code cells", () => {
+    const { result } = setup()
+    const row = rowsOf(result.current)[0]
+    for (const column of ["number", "actions"] as const) {
+      const props = result.current.getCellProps(row, "current", column)
+      expect(props["data-wrap"]).toBeUndefined()
+      expect(props.style.whiteSpace).toBeUndefined()
+    }
+  })
+
+  it("can start without wrapping", () => {
+    const { result } = setup({ wrapLines: false })
+    expect(result.current.wrapLines).toBe(false)
+
+    const props = codeProps(result.current)
+    expect(props["data-wrap"]).toBe("nowrap")
+    expect(props.style).toMatchObject({ whiteSpace: "pre", overflowX: "clip" })
+    expect(props.style.overflowWrap).toBeUndefined()
+  })
+
+  it("can be toggled and set", () => {
+    const { result } = setup()
+    act(() => result.current.toggleWrapLines())
+    expect(result.current.wrapLines).toBe(false)
+    expect(codeProps(result.current)["data-wrap"]).toBe("nowrap")
+
+    act(() => result.current.toggleWrapLines())
+    expect(result.current.wrapLines).toBe(true)
+
+    act(() => result.current.setWrapLines(false))
+    act(() => result.current.setWrapLines(false))
+    expect(result.current.wrapLines).toBe(false)
+  })
+
+  it("follows the option when it changes", () => {
+    const { result, rerender } = setup({ wrapLines: true })
+    act(() => result.current.toggleWrapLines())
+    expect(result.current.wrapLines).toBe(false)
+
+    rerender({ wrapLines: true })
+    expect(result.current.wrapLines).toBe(false)
+    rerender({ wrapLines: false })
+    rerender({ wrapLines: true })
+    expect(result.current.wrapLines).toBe(true)
+  })
+
+  it("slides the text only while lines do not wrap", () => {
+    const { result } = setup()
+    expect(result.current.getTextProps()).toEqual({
+      style: {},
+      "data-merge-text": "",
+    })
+
+    act(() => result.current.setWrapLines(false))
+    const { style } = result.current.getTextProps()
+    expect(style.width).toBe("max-content")
+    expect(style.transform).toContain("var(--merge-scroll-x")
+  })
+
+  it("keeps the scrollbar hidden when there is nothing to scroll", () => {
+    const { result } = setup()
+    expect(result.current.getScrollbarProps().hidden).toBe(true)
+
+    // No layout in jsdom, so nothing is wider than its pane.
+    act(() => result.current.setWrapLines(false))
+    const props = result.current.getScrollbarProps()
+    expect(props.hidden).toBe(true)
+    expect(props["aria-label"]).toBe("Scroll lines sideways")
+    expect(result.current.getScrollbarContentProps().style.width).toBe(
+      "calc(100% + 0px)",
+    )
+  })
+
+  it("lets the label of the scrollbar be reworded", () => {
+    const { result } = setup({ labels: { scrollLines: "Seitlich scrollen" } })
+    expect(result.current.getScrollbarProps()["aria-label"]).toBe(
+      "Seitlich scrollen",
+    )
+  })
+})

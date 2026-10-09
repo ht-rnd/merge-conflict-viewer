@@ -20,6 +20,7 @@ export function Viewer() {
   const [initialResult, setInitialResult] = useState<InitialResult>("none")
   const [editable, setEditable] = useState(true)
   const [collapseUnchanged, setCollapseUnchanged] = useState(false)
+  const [wrapLines, setWrapLines] = useState(true)
 
   const example = examples[selectedExample]
   const initialMergedJson =
@@ -44,6 +45,8 @@ export function Viewer() {
         onEditableChange={setEditable}
         collapseUnchanged={collapseUnchanged}
         onCollapseUnchangedChange={setCollapseUnchanged}
+        wrapLines={wrapLines}
+        onWrapLinesChange={setWrapLines}
       />
 
       <p className="text-2xl font-medium">Merge Conflict Viewer</p>
@@ -57,6 +60,7 @@ export function Viewer() {
         height={height}
         editable={editable}
         collapseUnchanged={collapseUnchanged}
+        wrapLines={wrapLines}
       />
 
       <Composition />
@@ -76,6 +80,7 @@ function ResolveAndSave({
   height,
   editable,
   collapseUnchanged,
+  wrapLines,
 }: {
   current: Record<string, unknown>
   incoming: Record<string, unknown>
@@ -84,6 +89,7 @@ function ResolveAndSave({
   height: string
   editable: boolean
   collapseUnchanged: boolean
+  wrapLines: boolean
 }) {
   const viewer = useMergeViewer({
     currentJson: current,
@@ -92,6 +98,7 @@ function ResolveAndSave({
     layout,
     editable,
     collapseUnchanged,
+    wrapLines,
   })
   const [saved, setSaved] = useState<string | null>(null)
 

@@ -83,6 +83,7 @@ try {
       "useMergeViewerContext", "buildMergeTree", "buildMergedJson",
       "buildMergeLayout", "getMergeStatus", "initialSelection", "selectAll",
       "foldRows", "deepEqual", "placeCell", "inlineSegments", "resolveLabels",
+      "SCROLL_X_VARIABLE",
     ]
     export function check(lib, renderToString, createElement) {
       for (const name of expected) {

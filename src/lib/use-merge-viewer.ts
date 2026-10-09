@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type KeyboardEvent,
+  type UIEvent,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -156,7 +157,20 @@ export interface UseMergeViewerOptions extends UseMergeConflictsOptions {
    * each change, a number sets the amount. Defaults to `false`.
    */
   collapseUnchanged?: boolean | number
+  /**
+   * Whether long lines wrap (the default). Turn it off and every line stays on
+   * one row: the three panes then scroll sideways together, driven by the
+   * scrollbar from `getScrollbarProps`. Users can flip it with
+   * `toggleWrapLines`; changing this option sets it again.
+   */
+  wrapLines?: boolean
 }
+
+/**
+ * The CSS variable (a length) that holds how far the lines are scrolled
+ * sideways while they do not wrap. It is set on the root element.
+ */
+export const SCROLL_X_VARIABLE = "--merge-scroll-x"
 
 interface CellProps {
   style: CSSProperties
@@ -168,6 +182,8 @@ interface CellProps {
   "data-block-end"?: ""
   "data-active"?: ""
   "data-merge-block"?: string
+  /** Only on `code` cells. */
+  "data-wrap"?: "wrap" | "nowrap"
 }
 
 export interface MergeViewer extends MergeConflictsState {
@@ -191,6 +207,12 @@ export interface MergeViewer extends MergeConflictsState {
    * hand), otherwise switches folding off again.
    */
   toggleCollapsed: () => void
+
+  // Line wrapping
+  /** `true` while long lines wrap; `false` while they scroll sideways. */
+  wrapLines: boolean
+  setWrapLines: (wrap: boolean) => void
+  toggleWrapLines: () => void
 
   // Navigation
   activeId: string | null
@@ -223,6 +245,30 @@ export interface MergeViewer extends MergeConflictsState {
     style: CSSProperties
     "data-layout": GridLayout
   }
+  /**
+   * Wrap the text of every line in an element with these props. While lines do
+   * not wrap, it is what slides sideways. Harmless while they wrap.
+   */
+  getTextProps: () => {
+    style: CSSProperties
+    "data-merge-text": ""
+  }
+  /**
+   * A horizontal scrollbar for the lines, to render inside the scroll element
+   * after the grid. It is `hidden` while lines wrap or fit. Put the props of
+   * `getScrollbarContentProps` on its only child.
+   */
+  getScrollbarProps: () => {
+    ref: (element: HTMLElement | null) => void
+    hidden: boolean
+    role: "group"
+    tabIndex: 0
+    "aria-label": string
+    "data-merge-scrollbar": ""
+    style: CSSProperties
+    onScroll: (event: UIEvent<HTMLElement>) => void
+  }
+  getScrollbarContentProps: () => { style: CSSProperties }
   getHeaderProps: (pane: MergePane) => {
     style: CSSProperties
     "data-pane": MergePane
@@ -257,6 +303,7 @@ export function useMergeViewer({
   layout = "responsive",
   stackBelow = DEFAULT_STACK_BELOW_PX,
   collapseUnchanged = false,
+  wrapLines: wrapLinesOption = true,
   ...mergeOptions
 }: UseMergeViewerOptions): MergeViewer {
   const t = useMemo(() => resolveLabels(labels), [labels])
@@ -353,6 +400,104 @@ export function useMergeViewer({
   const expandFold = (key: string): void => {
     setExpandedFolds((prev) => new Set(prev).add(key))
   }
+
+  // ---- Line wrapping ------------------------------------------------------
+
+  const [wrapLines, setWrapLines] = useState(wrapLinesOption)
+  // The option is where wrapping starts; a new value sets it again.
+  useEffect(() => setWrapLines(wrapLinesOption), [wrapLinesOption])
+  const toggleWrapLines = (): void => setWrapLines((wrap) => !wrap)
+
+  // While lines do not wrap, the text of every pane slides by the same amount
+  // (the `--merge-scroll-x` variable on the root), so the panes stay in step.
+  // That amount comes from a scrollbar of our own, as the lines themselves
+  // sit in one grid and cannot each scroll. `scrollRange` is how far the
+  // widest line reaches past the narrowest pane.
+  const [scrollbarElement, setScrollbarElement] = useState<HTMLElement | null>(
+    null,
+  )
+  const [scrollRange, setScrollRange] = useState(0)
+  const scrollable = !wrapLines && scrollRange > 0
+
+  useIsomorphicLayoutEffect(() => {
+    if (wrapLines || !rootElement) {
+      setScrollRange(0)
+      return
+    }
+
+    const measure = (): void => {
+      let widest = 0
+      for (const text of rootElement.querySelectorAll<HTMLElement>(
+        "[data-merge-text]",
+      )) {
+        widest = Math.max(widest, text.offsetWidth)
+      }
+      // Cells that are not displayed (empty ones when stacked) measure 0.
+      let narrowest: HTMLElement | null = null
+      for (const cell of rootElement.querySelectorAll<HTMLElement>(
+        '[data-column="code"]',
+      )) {
+        if (
+          cell.clientWidth > 0 &&
+          (narrowest === null || cell.clientWidth < narrowest.clientWidth)
+        ) {
+          narrowest = cell
+        }
+      }
+      if (!narrowest) {
+        setScrollRange(0)
+        return
+      }
+      const style = getComputedStyle(narrowest)
+      const padding =
+        (Number.parseFloat(style.paddingLeft) || 0) +
+        (Number.parseFloat(style.paddingRight) || 0)
+      setScrollRange(
+        Math.max(0, Math.ceil(widest + padding - narrowest.clientWidth)),
+      )
+    }
+
+    measure()
+    if (!scrollElement || typeof ResizeObserver === "undefined") {
+      return
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(scrollElement)
+    return () => observer.disconnect()
+    // `displayItems` stands for the text of the lines.
+  }, [wrapLines, rootElement, scrollElement, displayItems, stacked])
+
+  useIsomorphicLayoutEffect(() => {
+    rootElement?.style.setProperty(
+      SCROLL_X_VARIABLE,
+      `${scrollable && scrollbarElement ? scrollbarElement.scrollLeft : 0}px`,
+    )
+  }, [rootElement, scrollbarElement, scrollable])
+
+  // Sideways wheel and trackpad gestures (and Shift + wheel) over the lines
+  // move the scrollbar, and with it every pane.
+  useEffect(() => {
+    if (!scrollable || !scrollElement || !scrollbarElement) {
+      return
+    }
+    const onWheel = (event: WheelEvent): void => {
+      const delta = event.shiftKey
+        ? event.deltaX || event.deltaY
+        : Math.abs(event.deltaX) > Math.abs(event.deltaY)
+          ? event.deltaX
+          : 0
+      if (delta === 0) {
+        return
+      }
+      const before = scrollbarElement.scrollLeft
+      scrollbarElement.scrollLeft += delta
+      if (scrollbarElement.scrollLeft !== before) {
+        event.preventDefault()
+      }
+    }
+    scrollElement.addEventListener("wheel", onWheel, { passive: false })
+    return () => scrollElement.removeEventListener("wheel", onWheel)
+  }, [scrollable, scrollElement, scrollbarElement])
 
   // ---- Navigation ---------------------------------------------------------
 
@@ -643,6 +788,10 @@ export function useMergeViewer({
     collapsed,
     toggleCollapsed,
 
+    wrapLines,
+    setWrapLines,
+    toggleWrapLines,
+
     activeId,
     goToChange,
     goToNextUnresolved,
@@ -667,6 +816,39 @@ export function useMergeViewer({
       },
       "data-layout": gridLayout,
     }),
+    getTextProps: () => ({
+      style: wrapLines
+        ? {}
+        : {
+            display: "block",
+            width: "max-content",
+            transform: `translateX(calc(var(${SCROLL_X_VARIABLE}, 0px) * -1))`,
+          },
+      "data-merge-text": "",
+    }),
+    getScrollbarProps: () => ({
+      ref: setScrollbarElement,
+      hidden: !scrollable,
+      role: "group",
+      tabIndex: 0,
+      "aria-label": t.scrollLines,
+      "data-merge-scrollbar": "",
+      style: {
+        position: "sticky",
+        bottom: 0,
+        overflowX: "auto",
+        overflowY: "hidden",
+      },
+      onScroll: (event) => {
+        rootElement?.style.setProperty(
+          SCROLL_X_VARIABLE,
+          `${event.currentTarget.scrollLeft}px`,
+        )
+      },
+    }),
+    getScrollbarContentProps: () => ({
+      style: { width: `calc(100% + ${scrollRange}px)`, height: 1 },
+    }),
     getHeaderProps: (pane) => ({
       style: { ...placeCell(gridLayout, pane, "header", 0, rowCount) },
       "data-pane": pane,
@@ -676,6 +858,18 @@ export function useMergeViewer({
       const line = item[pane]
       const style: CSSProperties = {
         ...placeCell(gridLayout, pane, column, item.index, rowCount),
+      }
+      if (column === "code") {
+        style.minWidth = 0
+        if (wrapLines) {
+          style.whiteSpace = "pre-wrap"
+          style.overflowWrap = "anywhere"
+        } else {
+          // `clip` hides what slid out without making the cell scroll, so
+          // buttons and popovers inside it keep their place.
+          style.whiteSpace = "pre"
+          style.overflowX = "clip"
+        }
       }
       // Empty cells would only add blank rows when the panes are stacked.
       if (stacked && line.state === "filler") {
@@ -690,6 +884,8 @@ export function useMergeViewer({
         "data-block-start": flag(line.blockStart),
         "data-block-end": flag(line.blockEnd),
         "data-active": flag(line.active),
+        "data-wrap":
+          column === "code" ? (wrapLines ? "wrap" : "nowrap") : undefined,
         "data-merge-block":
           column === "code" && line.blockStart
             ? (line.blockId ?? undefined)

@@ -17,7 +17,7 @@ It ships in two parts:
 
 - Compares **by structure, not by line**: keys and array items are matched, so a key that only exists on one side gets blank space opposite it instead of being lined up with an unrelated key.
 - **"All changes resolved"** is a first-class state: a banner, a `status` object and a `Next unresolved` button.
-- **Editable result** (opt in), **undo and redo**, **folded unchanged lines**, previous/next change navigation, stacked layout on narrow screens, light and dark.
+- **Editable result** (opt in), **undo and redo**, **folded unchanged lines**, **wrap or scroll long lines** (the three panes scroll sideways together), previous/next change navigation, stacked layout on narrow screens, light and dark.
 - Works with **Tailwind v3.4 and v4** and with React 18 and 19.
 
 ## Is this the right tool?
@@ -121,7 +121,7 @@ A change starts **unresolved**: the Result pane shows the incoming value on an a
 | Export | What it renders |
 |---|---|
 | `MergeConflictViewer` | The root. Takes either `viewer` (from `useMergeViewer`) or the hook options. With no children it renders the toolbar, the banner and the panes. Accepts the props of a `div`. |
-| `MergeConflictToolbar` | Apply all, previous/next change, undo/redo, fold toggle, summary. Accepts `children` to add your own buttons. |
+| `MergeConflictToolbar` | Apply all, previous/next change, undo/redo, fold and wrap toggles, summary. Accepts `children` to add your own buttons. |
 | `MergeConflictStatus` | The banner with the progress bar and `Next unresolved`. |
 | `MergeConflictPanes` | The three scrolling panes (or the stacked layout). |
 | `MergeConflictValueEditor` | The popover editor used by the pencil button. |
@@ -154,6 +154,7 @@ These are the options of `useMergeViewer`, also accepted as props by `MergeConfl
 | `layout` | `"horizontal" \| "vertical" \| "responsive"` | `"responsive"` | Side by side, stacked, or stacked below `stackBelow` |
 | `stackBelow` | `number` | `900` | Container width (px) below which `"responsive"` stacks |
 | `collapseUnchanged` | `boolean \| number` | `false` | Fold unchanged runs; a number sets the context lines (default 3) |
+| `wrapLines` | `boolean` | `true` | Wrap long lines. `false` keeps one row per line and scrolls the panes sideways together, see [Long lines](#long-lines) |
 | `labels` | `MergeViewerLabels` | English | Every text in the UI, see [Labels](#labels) |
 
 `layout="vertical"` stacks the panes as Current, Incoming, Result.
@@ -316,6 +317,18 @@ Every line is rendered (there is no virtualization), so for big documents fold t
 
 Long unchanged runs collapse into a `⋯ 120 unchanged lines` row that expands on click. Users can toggle it from the toolbar.
 
+### Long lines
+
+Long lines wrap by default. The toolbar has a `Wrap lines` button, and `wrapLines` sets where it starts:
+
+```tsx
+<MergeConflictViewer wrapLines={false} ... />   // one row per line, scroll sideways
+```
+
+With wrapping off, every line stays on one row and a scrollbar appears under the panes. **All three panes scroll together**, so the same part of every line stays lined up, and the Shift + wheel and horizontal trackpad gestures work over the lines too. The scrollbar is only shown when some line is wider than its pane. The accept, remove and edit buttons stay in place while the text slides.
+
+`wrapLines` is where wrapping starts: the toolbar button changes it afterwards, and passing a different value sets it again.
+
 ### Labels
 
 Every text goes through one `labels` option. Set what you need; the rest keeps its English default. Functions receive what they need to build the sentence.
@@ -340,7 +353,8 @@ Every text goes through one `labels` option. Set what you need; the rest keeps i
 | `current`, `result`, `incoming` | `Current`, `Result`, `Incoming` |
 | `applyAllCurrent`, `applyAllIncoming` | `Apply all from current`, `Apply all from incoming` |
 | `previousChange`, `nextChange`, `undo`, `redo` | `Previous change`, `Next change`, `Undo`, `Redo` |
-| `hideUnchanged` | `Hide unchanged lines` |
+| `hideUnchanged`, `wrapLines` | `Hide unchanged lines`, `Wrap lines` |
+| `scrollLines` | `Scroll lines sideways` (accessible name of the scrollbar under the panes) |
 | `summary(status)` | `11 changes` / `No differences` |
 | `noChanges` | `No differences. Nothing to merge.` |
 | `unresolved(status)` | `3 of 11 changes still need a decision.` |
@@ -453,6 +467,35 @@ Style it with the data attributes:
 
 For per-change buttons, read `line.actions` (`accept`, `remove`, `edit`, `revert`: each `{ label, pressed, run }`) and render the `number` and `actions` columns with `getCellProps(item, pane, "number" | "actions")`. The shadcn component in `demo/src/components/ui/merge-conflict-viewer.tsx` is a complete reference implementation.
 
+### Scroll long lines sideways
+
+`useMergeViewer` wraps long lines unless you pass `wrapLines: false` or call `viewer.toggleWrapLines()` (also `setWrapLines(boolean)`). `getCellProps` already sets `white-space` and `overflow` on the `code` cells and `data-wrap="wrap" | "nowrap"`, so wrapping works with the markup above. To let users scroll sideways while lines do not wrap, add two things:
+
+```tsx
+const viewer = useMergeViewer({ currentJson, incomingJson, wrapLines: false })
+const { ref: scrollbarRef, ...scrollbarProps } = viewer.getScrollbarProps()
+
+<div ref={scrollRef} style={{ overflow: "auto", height: 500 }}>
+  <div {...viewer.getGridProps()}>
+    {/* ... */}
+    <div {...viewer.getCellProps(item, pane, "code")}>
+      {/* the text of the line goes in an element with these props */}
+      <span {...viewer.getTextProps()}>{line.text}</span>
+    </div>
+  </div>
+
+  {/* a scrollbar for all three panes: hidden while lines wrap or fit */}
+  <div ref={scrollbarRef} {...scrollbarProps}>
+    <div {...viewer.getScrollbarContentProps()} />
+  </div>
+</div>
+```
+
+- The three panes share one grid, so they cannot each scroll. Instead the scrollbar sets one length, the CSS variable `--merge-scroll-x` (exported as `SCROLL_X_VARIABLE`), on the root element, and `getTextProps` slides the text of every pane by it. That keeps the panes exactly in step.
+- The scrollbar props make it `position: sticky; bottom: 0`, so it stays in view; give it a `z-index` and a background. Shift + wheel and horizontal wheel or trackpad gestures over the scroll element move it as well.
+- Cells use `overflow-x: clip`, not a scrolling overflow, so buttons and popovers you put in a cell keep their place.
+- `getScrollbarProps().hidden` is `true` while lines wrap or none is wider than its pane. Add `[hidden] { display: none }` if your CSS reset does not.
+
 ## API
 
 ### `useMergeViewer(options)`
@@ -464,9 +507,11 @@ Takes the [options](#options) above. Returns everything `useMergeConflicts` retu
 | `items` | Everything shown, in order: rows (`current`, `result` and `incoming` lines) and folds of unchanged lines |
 | `labels`, `stacked`, `statusState`, `statusText` | Resolved texts, whether the panes are stacked, and the banner state (`"empty" \| "pending" \| "resolved"`) |
 | `collapsed`, `toggleCollapsed` | Whether unchanged runs are folded. `collapsed` turns `false` when the user opens a run by hand, and `toggleCollapsed` then folds them all again before it switches folding off |
+| `wrapLines`, `setWrapLines(wrap)`, `toggleWrapLines()` | Whether long lines wrap. While they do not, the panes scroll sideways together (see [headless scrolling](#scroll-long-lines-sideways)) |
 | `activeId`, `goToChange(dir)`, `goToNextUnresolved()` | Navigation between changes |
 | `editable`, `editingId`, `startEdit(id)`, `cancelEdit()`, `editorText(id)`, `commitEdit(id, text)` | Editing; `commitEdit` returns the parser's message when the text is not valid JSON |
 | `getRootProps()`, `getScrollProps()`, `getGridProps()`, `getHeaderProps(pane)`, `getCellProps(row, pane, column)`, `getFoldProps(fold, pane)` | Prop getters to spread on your elements |
+| `getTextProps()`, `getScrollbarProps()`, `getScrollbarContentProps()` | Prop getters for lines that do not wrap, see [headless scrolling](#scroll-long-lines-sideways) |
 
 `MergeViewerProvider` and `useMergeViewerContext` let parts share one viewer without prop drilling (this is how the shadcn component's parts work).
 
