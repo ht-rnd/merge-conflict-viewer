@@ -463,7 +463,7 @@ Takes the [options](#options) above. Returns everything `useMergeConflicts` retu
 |---|---|
 | `items` | Everything shown, in order: rows (`current`, `result` and `incoming` lines) and folds of unchanged lines |
 | `labels`, `stacked`, `statusState`, `statusText` | Resolved texts, whether the panes are stacked, and the banner state (`"empty" \| "pending" \| "resolved"`) |
-| `collapsed`, `toggleCollapsed` | Whether unchanged runs are folded |
+| `collapsed`, `toggleCollapsed` | Whether unchanged runs are folded. `collapsed` turns `false` when the user opens a run by hand, and `toggleCollapsed` then folds them all again before it switches folding off |
 | `activeId`, `goToChange(dir)`, `goToNextUnresolved()` | Navigation between changes |
 | `editable`, `editingId`, `startEdit(id)`, `cancelEdit()`, `editorText(id)`, `commitEdit(id, text)` | Editing; `commitEdit` returns the parser's message when the text is not valid JSON |
 | `getRootProps()`, `getScrollProps()`, `getGridProps()`, `getHeaderProps(pane)`, `getCellProps(row, pane, column)`, `getFoldProps(fold, pane)` | Prop getters to spread on your elements |
