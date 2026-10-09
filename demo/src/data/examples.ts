@@ -275,12 +275,43 @@ const configMigration: Example = {
   },
 }
 
+const longLines: Example = {
+  label: "Long Lines",
+  description:
+    "Values far wider than a pane: URLs, a SQL query, a header and a token. Turn off Wrap lines to keep one row per line and scroll all three panes together.",
+  current: {
+    service: "reporting-api",
+    baseUrl:
+      "https://reporting.internal.example.com/api/v2/reports/quarterly?region=eu-central-1&format=json&include=totals,breakdown,forecast",
+    query:
+      "SELECT account_id, SUM(amount) AS total FROM invoices WHERE status = 'paid' AND issued_at >= '2026-01-01' GROUP BY account_id ORDER BY total DESC LIMIT 100",
+    csp: "default-src 'self'; script-src 'self' https://cdn.example.com; img-src 'self' data: https://images.example.com; connect-src 'self' https://api.example.com",
+    token:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+    timeoutMs: 5000,
+    owner: "platform-team",
+  },
+  incoming: {
+    service: "reporting-api",
+    baseUrl:
+      "https://reporting.internal.example.com/api/v3/reports/quarterly?region=eu-west-1&format=json&include=totals,breakdown,forecast,variance",
+    query:
+      "SELECT account_id, SUM(amount) AS total FROM invoices WHERE status IN ('paid', 'refunded') AND issued_at >= '2026-04-01' GROUP BY account_id ORDER BY total DESC LIMIT 250",
+    csp: "default-src 'self'; script-src 'self' https://cdn.example.com; img-src 'self' data: https://images.example.com; connect-src 'self' https://api.example.com https://telemetry.example.com",
+    token:
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkphbmUgRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o",
+    timeoutMs: 10000,
+    owner: "platform-team",
+  },
+}
+
 export const examples: Record<string, Example> = {
   userProfile,
   productCatalog,
   ciPipeline,
   deploymentManifest,
   configMigration,
+  longLines,
 }
 
 export const defaultExampleKey = "userProfile"

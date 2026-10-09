@@ -75,14 +75,25 @@ describe("what each example is meant to show", () => {
   const kinds = (key: string) =>
     new Set(treeOf(key).conflicts.map((c) => c.kind))
 
-  it("has exactly the five curated examples", () => {
+  it("has exactly the six curated examples", () => {
     expect(Object.keys(examples)).toEqual([
       "userProfile",
       "productCatalog",
       "ciPipeline",
       "deploymentManifest",
       "configMigration",
+      "longLines",
     ])
+  })
+
+  it("long lines has lines wider than any pane to scroll", () => {
+    const longest = Math.max(
+      ...JSON.stringify(examples.longLines.current, null, 2)
+        .split("\n")
+        .map((line) => line.length),
+    )
+    expect(longest).toBeGreaterThan(120)
+    expect(kinds("longLines")).toEqual(new Set(["modified"]))
   })
 
   it("user profile has edits, removals and additions", () => {

@@ -197,8 +197,8 @@ function cellClassName(line: MergeViewerLine, column: CellColumn): string {
   const t = tintFor(line)
   return cn(
     "min-h-[1.55em]",
-    column === "code" &&
-      "min-w-0 px-2 whitespace-pre-wrap [overflow-wrap:anywhere]",
+    // Wrapping (or not) is set by the viewer's cell props.
+    column === "code" && "px-2",
     column === "number" &&
       "px-1.5 text-right text-muted-foreground tabular-nums select-none",
     column === "actions" && "flex items-center justify-center gap-0.5",
@@ -285,6 +285,7 @@ function MergeConflictViewerOwner({
   layout,
   stackBelow,
   collapseUnchanged,
+  wrapLines,
   viewer: _viewer,
   ...rootProps
 }: MergeConflictViewerDivProps &
@@ -302,6 +303,7 @@ function MergeConflictViewerOwner({
     layout,
     stackBelow,
     collapseUnchanged,
+    wrapLines,
   })
   return <MergeConflictViewerRoot viewer={viewer} {...rootProps} />
 }
@@ -437,6 +439,17 @@ function MergeConflictToolbar({
             {t.hideUnchanged}
           </Button>
 
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-pressed={viewer.wrapLines}
+            className="aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+            onClick={viewer.toggleWrapLines}
+          >
+            {t.wrapLines}
+          </Button>
+
           <span className="ml-auto text-sm text-muted-foreground">
             {t.summary(status)}
           </span>
@@ -527,13 +540,14 @@ function MergeConflictPanes({
 }: React.ComponentProps<"div">) {
   const viewer = useMergeViewerContext()
   const { ref, ...scrollProps } = viewer.getScrollProps()
+  const { ref: scrollbarRef, ...scrollbarProps } = viewer.getScrollbarProps()
 
   return (
     <div
       ref={ref as React.Ref<HTMLDivElement>}
       data-slot="merge-conflict-panes"
       className={cn(
-        "relative min-h-0 flex-1 overflow-auto rounded-lg border bg-background",
+        "relative flex min-h-0 flex-1 flex-col overflow-auto rounded-lg border bg-background",
         className,
       )}
       {...scrollProps}
@@ -542,7 +556,7 @@ function MergeConflictPanes({
       <div
         {...viewer.getGridProps()}
         className={cn(
-          "font-mono text-[13px] leading-[1.55]",
+          "shrink-0 font-mono text-[13px] leading-[1.55]",
           !viewer.stacked && "min-w-[60rem]",
         )}
       >
@@ -569,14 +583,25 @@ function MergeConflictPanes({
           ),
         )}
       </div>
+      {/* Shown while lines do not wrap and some are wider than their pane. It
+          moves all three panes at once. */}
+      <div
+        ref={scrollbarRef as React.Ref<HTMLDivElement>}
+        {...scrollbarProps}
+        className="z-10 mt-auto shrink-0 border-t bg-background [&[hidden]]:hidden"
+      >
+        <div {...viewer.getScrollbarContentProps()} />
+      </div>
     </div>
   )
 }
 
 function CodeText({ line }: { line: MergeViewerLine }) {
+  const viewer = useMergeViewerContext()
   const markClass = tintFor(line)?.mark
   return (
-    <>
+    // The text slides sideways as a whole while lines do not wrap.
+    <span {...viewer.getTextProps()}>
       {line.segments.map((segment, index) =>
         segment.changed ? (
           <mark
@@ -589,7 +614,7 @@ function CodeText({ line }: { line: MergeViewerLine }) {
           <React.Fragment key={index}>{segment.text}</React.Fragment>
         ),
       )}
-    </>
+    </span>
   )
 }
 

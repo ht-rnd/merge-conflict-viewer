@@ -18,6 +18,7 @@ export interface MergeViewerLabels {
   previousChange?: string
   nextChange?: string
   hideUnchanged?: string
+  wrapLines?: string
   undo?: string
   redo?: string
   /** Right-hand summary of the toolbar, e.g. "11 changes". */
@@ -28,6 +29,10 @@ export interface MergeViewerLabels {
   unresolved?: (status: MergeStatus) => string
   allResolved?: (status: MergeStatus) => string
   nextUnresolved?: string
+
+  // Lines that do not wrap
+  /** Accessible name of the scrollbar under the panes. */
+  scrollLines?: string
 
   // Folded lines
   unchangedLines?: (count: number) => string
@@ -63,6 +68,7 @@ export const defaultLabels: ResolvedLabels = {
   previousChange: "Previous change",
   nextChange: "Next change",
   hideUnchanged: "Hide unchanged lines",
+  wrapLines: "Wrap lines",
   undo: "Undo",
   redo: "Redo",
   summary: ({ total }) =>
@@ -80,6 +86,8 @@ export const defaultLabels: ResolvedLabels = {
   allResolved: ({ total }) =>
     `All ${total} ${plural(total, "change", "changes")} resolved. Safe to merge.`,
   nextUnresolved: "Next unresolved",
+
+  scrollLines: "Scroll lines sideways",
 
   unchangedLines: (count) =>
     `${count} unchanged ${plural(count, "line", "lines")}`,

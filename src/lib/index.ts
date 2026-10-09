@@ -58,4 +58,4 @@ export type {
   MergeViewerStatusState,
   UseMergeViewerOptions,
 } from "./use-merge-viewer"
-export { useMergeViewer } from "./use-merge-viewer"
+export { SCROLL_X_VARIABLE, useMergeViewer } from "./use-merge-viewer"

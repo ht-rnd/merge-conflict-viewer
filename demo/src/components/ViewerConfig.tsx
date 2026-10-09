@@ -22,6 +22,8 @@ interface ViewerConfigProps {
   onEditableChange: (value: boolean) => void
   collapseUnchanged: boolean
   onCollapseUnchangedChange: (value: boolean) => void
+  wrapLines: boolean
+  onWrapLinesChange: (value: boolean) => void
 }
 
 export type InitialResult = "none" | "current" | "incoming"
@@ -70,6 +72,8 @@ export function ViewerConfig({
   onEditableChange,
   collapseUnchanged,
   onCollapseUnchangedChange,
+  wrapLines,
+  onWrapLinesChange,
 }: ViewerConfigProps) {
   return (
     <div>
@@ -139,6 +143,14 @@ export function ViewerConfig({
           hint="Start with long unchanged runs folded"
           checked={collapseUnchanged}
           onChange={onCollapseUnchangedChange}
+        />
+
+        <Toggle
+          id="wrap-lines"
+          label="Long lines"
+          hint="Wrap them (off: scroll all panes sideways)"
+          checked={wrapLines}
+          onChange={onWrapLinesChange}
         />
 
         <div className="flex flex-col gap-2">
